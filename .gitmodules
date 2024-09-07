@@ -1,0 +1,3 @@
+[submodule "DeePC"]
+	path = DeePC
+	url = https://github.com/Crylab/DeePC.git

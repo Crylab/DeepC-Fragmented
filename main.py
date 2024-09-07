@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # This line indicates that the script should be run using the Python interpreter.
+import source.deepcf as deepcf
 
 # Define a function that prints "Hello, World!"
 def print_hello_world():
@@ -9,3 +10,5 @@ def print_hello_world():
 if __name__ == "__main__":
     # Call the function to print "Hello, World!"
     print_hello_world()
+    deepcf.DeepC_Fragment({})
+    
