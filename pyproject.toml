@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "deepc-fragmented"
+version = "0.1.0"
+description = "The package contend DeepC-Fragmented algorithm"
+authors = ["Ruslan Shaiakhmetov <ruslan.shaiakhmetov@unibo.it>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
