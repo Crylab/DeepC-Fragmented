@@ -75,30 +75,17 @@ class DeepC_Fragment(deepc.DeepC):
         
         heg = self.channels * (self.init_length + 1)
         
-        C1 = np.zeros(self.finish_length * heg)
+        C1 = np.array([])
         
         for o in range(0, self.finish_length):
-            chunk = np.concatenate(
-                (
-                    np.concatenate(self.input_init),
-                    np.zeros(self.channels * self.init_length),
-                )
-            )
-            chunk = np.roll(chunk, -o)
-            chunk = chunk[0:self.init_length+1]
-            
-            chunk2 = np.concatenate(
-                (
-                    np.concatenate(self.output_init),
-                    np.zeros(self.channels * self.init_length),
-                )
-            )
-            chunk2 = np.roll(chunk2, -o)
-            chunk2 = chunk2[0:self.init_length+1]
-            
-            C1[o*self.channels*(self.init_length+1):(o+1)*self.channels *
-               (self.init_length+1)] = np.concatenate((chunk, chunk2))
-        
+            for i in range(0, self.n_inputs):
+                temp1 = np.concatenate((self.input_init[i], np.zeros(self.init_length)))
+                temp2 = np.roll(temp1, -o)[0:self.init_length]
+                C1 = np.concatenate((C1, temp2, np.array([0.0])))
+            for i in range(0, self.n_outputs):
+                temp1 = np.concatenate((self.output_init[i], np.zeros(self.init_length)))
+                temp2 = np.roll(temp1, -o)[0:self.init_length]
+                C1 = np.concatenate((C1, temp2, np.array([0.0])))
         
         print(C1)
         
