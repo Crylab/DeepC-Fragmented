@@ -24,13 +24,13 @@ class DeepC_Fragment(deepc.DeepC):
         """
         if not self.dataset_exists:
             raise Exception("Attempt to reformulate H without dataset")
-        self.H = [[0.0] * (self.init_length * self.channels)] * self.N * self.finish_length
-        for i in range(0, self.N):
-            for ite in range(0, self.finish_length):
-                chunk = np.array([])
+        self.H = [[0.0] * ((self.init_length + 1) * self.channels * self.finish_length)] * self.N * self.finish_length
+        for ite in range(0, self.finish_length):
+            for i in range(0, self.N):
+                chunk = np.zeros(((self.init_length + 1) * self.channels * ite))
                 for j in range(0, self.channels):
                     chunk = np.hstack((chunk, dataset_in[i][j][ite : self.init_length+ite+1]))
-                self.H[i*self.finish_length+ite] = chunk
+                self.H[ite*self.N+i] = np.concatenate((chunk, np.zeros((self.init_length+1) * self.channels * (self.finish_length-ite-1))))
         self.H = np.array(self.H)
         self.dataset_formulated = True
     
