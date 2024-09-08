@@ -71,7 +71,7 @@ def test_SISO():
     params = {
         "N": 2,
         "initial_horizon": 2,
-        "prediction_horizon": 2,
+        "prediction_horizon": 8,
         "n_inputs": 1,
         "n_outputs": 1,
     }
@@ -114,15 +114,9 @@ def test_SISO():
     obj.dataset_reformulation(obj.dataset)
     obj.solve_raw()  
         
-def magic_matrix(init_length, offset):
-    test = -np.eye(2*init_length)
-    test2 = np.roll(test, init_length-1-offset, axis=0)
-    matrix = test2[0:init_length, 0:init_length]
-    return matrix
-        
 # Check if the script is being run as the main module
 if __name__ == "__main__":
-    #test_MIMO()
+    test_MIMO()
     test_SISO()
     exit()
     

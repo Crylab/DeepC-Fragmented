@@ -42,7 +42,7 @@ class DeepC_Fragment(deepc.DeepC):
         else:
             test = -np.eye(2*self.init_length)
         test2 = np.roll(test, self.init_length-1-offset, axis=0)
-        matrix = test2[0:self.init_length, 0:self.finish_length]
+        matrix = test2[0:self.init_length+1, 0:self.finish_length]
         return matrix
     
     def sigma_matrix(self, offset: int) -> np.ndarray:
@@ -166,8 +166,9 @@ class DeepC_Fragment(deepc.DeepC):
             else:
                 B32 = np.concatenate((B32, mat))
         
+        B1 = np.concatenate((self.H.T, B31, B32), axis=1)
         
-        self.show_matrix(B32)
+        self.show_matrix(B1)
         
         
         #raise NotImplementedError("Method not implemented")
