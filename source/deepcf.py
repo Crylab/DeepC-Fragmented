@@ -168,12 +168,12 @@ class DeepC_Fragment(deepc.DeepC):
         
         B1 = np.concatenate((self.H.T, B31, B32), axis=1)
         
-        self.show_matrix(B1)
+        self.solver = osqp.OSQP()
+        D0_sparse = sparse.csc_matrix(D0)
+        B1_sparse = sparse.csc_matrix(B1)
+        self.solver.setup(D0_sparse, E0, B1_sparse, C1, C1, verbose=False)
+        results = self.solver.solve()
+        if results.info.status_val != 1:
+            return None
+        return results
         
-        
-        #raise NotImplementedError("Method not implemented")
-        
-class local_deepc_tracking(deepc_tracking.DEEPC_Tracking):
-    
-    def hi(self):
-        print("Hello from DeepC_tracking local")
