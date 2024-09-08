@@ -36,13 +36,21 @@ class DeepC_Fragment(deepc.DeepC):
         self.H = np.array(self.H)
         self.dataset_formulated = True
     
-    def magic_matrix(self, init_length: int, finish_length: int, offset: int, last_zero = False) -> np.ndarray:
-        if finish_length>=init_length:
-            test = -np.eye(2*finish_length);
+    def magic_matrix(self, offset: int) -> np.ndarray:
+        if self.finish_length>=self.init_length:
+            test = -np.eye(2*self.finish_length);
         else:
-            test = -np.eye(2*init_length)
-        test2 = np.roll(test, init_length-1-offset, axis=0)
-        matrix = test2[0:init_length, 0:finish_length]
+            test = -np.eye(2*self.init_length)
+        test2 = np.roll(test, self.init_length-1-offset, axis=0)
+        matrix = test2[0:self.init_length, 0:self.finish_length]
+        return matrix
+    
+    def sigma_matrix(self, offset: int) -> np.ndarray:
+        com = self.finish_length+self.init_length-1
+        test = -np.eye(2*com)
+        test2 = np.roll(test, -offset, axis=0)
+        test3 = test2[0:self.init_length, 0:com]
+        matrix = np.concatenate((test3, np.zeros((1, com))), axis=0)
         return matrix
     
     def show_matrix(self, matrix: np.ndarray) -> None:
@@ -137,8 +145,8 @@ class DeepC_Fragment(deepc.DeepC):
         # B1 Matrix
         B31 = np.array([])
         for j in range(0, self.finish_length):
-            mat_in = block_diag(*([self.magic_matrix(self.init_length, self.finish_length, j)] * self.n_inputs))
-            mat_out = block_diag(*([self.magic_matrix(self.init_length, self.finish_length, j)] * self.n_outputs))
+            mat_in = block_diag(*([self.magic_matrix(j)] * self.n_inputs))
+            mat_out = block_diag(*([self.magic_matrix(j)] * self.n_outputs))
             mat = block_diag(mat_in, mat_out)
             if B31.size == 0:
                 B31 = mat
@@ -146,12 +154,23 @@ class DeepC_Fragment(deepc.DeepC):
                 B31 = np.concatenate((B31, mat))
                 
         B32 = np.array([])
+        for j in range(0, self.finish_length):
+            mat_in = np.zeros((
+                self.n_inputs*(self.init_length+1), 
+                (self.init_length+self.finish_length-1)*self.n_inputs
+            ))
+            mat_out = block_diag(*([self.sigma_matrix(j)] * self.n_outputs))
+            mat = np.concatenate((mat_in, mat_out))
+            if B32.size == 0:
+                B32 = mat
+            else:
+                B32 = np.concatenate((B32, mat))
         
         
-        self.show_matrix(B31)
+        self.show_matrix(B32)
         
         
-        raise NotImplementedError("Method not implemented")
+        #raise NotImplementedError("Method not implemented")
         
 class local_deepc_tracking(deepc_tracking.DEEPC_Tracking):
     
