@@ -109,7 +109,16 @@ class DeepC_Fragment(deepc.DeepC):
                     self.criteria["beta_lambda_y"][output_iter] ** counter
                 )
         
-        print(D0)
+        # E0 Matrix
+        E1 = np.copy(self.reference)
+        for i in range(0, self.n_outputs):
+            E1[i] *= -self.criteria["Q"][i]
+        E2 = np.concatenate(E1)
+        F1 = np.zeros(self.N * self.finish_length + (self.n_inputs * self.finish_length))
+        F2 = np.zeros(self.n_outputs * self.init_length)
+        E0 = np.concatenate((F1, E2, F2))
+        
+        print(E0)
         
         raise NotImplementedError("Method not implemented")
         
