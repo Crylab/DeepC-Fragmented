@@ -3,7 +3,9 @@ import sys
 sys.path.append("DeePC/source")
 
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy import sparse
+from scipy.linalg import block_diag
 import osqp
 import DeePC.source.deepc as deepc
 import DeePC.source.deepc_tracking as deepc_tracking
@@ -34,6 +36,17 @@ class DeepC_Fragment(deepc.DeepC):
         self.H = np.array(self.H)
         self.dataset_formulated = True
     
+    def magic_matrix(self, init_length: int, offset: int) -> np.ndarray:
+        test = -np.eye(2*init_length)
+        test2 = np.roll(test, init_length-1-offset, axis=0)
+        matrix = test2[0:init_length, 0:init_length]
+        return matrix
+    
+    def show_matrix(self, matrix: np.ndarray) -> None:
+        plt.ion()
+        plt.imshow(matrix, cmap="hot", interpolation="none")
+        plt.savefig("img/matrix.pdf")
+                
     def solve_raw(self):
         """
         Solve the optimization problem and provide raw OSQP output.
@@ -118,7 +131,19 @@ class DeepC_Fragment(deepc.DeepC):
         F2 = np.zeros(self.n_outputs * self.init_length)
         E0 = np.concatenate((F1, E2, F2))
         
-        print(E0)
+        # B1 Matrix
+        B31 = np.array([])
+        for j in range(0, self.finish_length):
+            mat_in = block_diag(*([self.magic_matrix(self.init_length+1, j)] * self.n_inputs))
+            mat_out = block_diag(*([self.magic_matrix(self.init_length+1, j)] * self.n_outputs))
+            mat = block_diag(mat_in, mat_out)
+            if B31.size == 0:
+                B31 = mat
+            else:
+                B31 = np.concatenate((B31, mat))
+        
+        self.show_matrix(B31)
+        
         
         raise NotImplementedError("Method not implemented")
         
