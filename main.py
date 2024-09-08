@@ -112,7 +112,8 @@ def test_SISO():
     
     # Solve the optimization problem
     obj.dataset_reformulation(obj.dataset)
-    obj.solve_raw()  
+    result = obj.solve() 
+    print(result)
         
 # Check if the script is being run as the main module
 if __name__ == "__main__":
