@@ -37,6 +37,8 @@ class DeepC_Fragment(deepc.DeepC):
         self.dataset_formulated = True
     
     def magic_matrix(self, init_length: int, offset: int) -> np.ndarray:
+        if offset >= 2*init_length:
+            return np.zeros((init_length, init_length))
         test = -np.eye(2*init_length)
         test2 = np.roll(test, init_length-1-offset, axis=0)
         matrix = test2[0:init_length, 0:init_length]
@@ -141,6 +143,9 @@ class DeepC_Fragment(deepc.DeepC):
                 B31 = mat
             else:
                 B31 = np.concatenate((B31, mat))
+                
+        B32 = np.array([])
+        
         
         self.show_matrix(B31)
         
