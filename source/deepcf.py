@@ -55,25 +55,10 @@ class DeepC_Fragment(deepc.DeepC):
             raise Exception("Attempt to solve the problem without reference")
         if not self.criteria_exists:
             raise Exception("Attempt to solve the problem without criteria")
-
-        #
-        #
-        #
-        #C1 = zeros(1, finish_length*heg);
-        #for o=0:finish_length-1
-        #    chunk = [u_init, zeros(size(u_init))];
-        #    chunk = circshift(chunk, -o);
-        #    chunk = [chunk(1:init_length), 0];
-
-        #    chunk2 = [y_init, zeros(size(y_init))];
-        #    chunk2 = circshift(y_init, -o);
-        #    chunk2 = [y_init(1:init_length), 0];
-
-        #C1(o*2*(init_length+1)+1:(o+1)*2*(init_length+1)) = [chunk, chunk2];
-
-        #end
         
         heg = self.channels * (self.init_length + 1)
+        
+        # C1 Matrix
         
         C1 = np.array([])
         
@@ -87,7 +72,44 @@ class DeepC_Fragment(deepc.DeepC):
                 temp2 = np.roll(temp1, -o)[0:self.init_length]
                 C1 = np.concatenate((C1, temp2, np.array([0.0])))
         
-        print(C1)
+        
+        # D1 Matrix
+        
+        com = self.N * self.finish_length + (self.channels * self.finish_length) + (self.n_outputs * self.init_length)
+        D0 = self.criteria["lambda_g"] * np.identity(com)
+        for input_iter in range(0, self.n_inputs):
+            counter = -1
+            for iterator in range(
+                self.N * self.finish_length + (input_iter * self.finish_length),
+                self.N * self.finish_length + ((input_iter + 1) * self.finish_length),
+            ):
+                counter += 1
+                D0[iterator][iterator] = self.criteria["R"][input_iter] * (
+                    self.criteria["beta_R"][input_iter] ** counter
+                )
+        for output_iter in range(0, self.n_outputs):
+            counter = -1
+            for iterator in range(
+                self.N * self.finish_length + ((input_iter + output_iter + 1) * self.finish_length),
+                self.N * self.finish_length + ((input_iter + output_iter + 2) * self.finish_length),
+            ):
+                counter += 1
+                D0[iterator][iterator] = self.criteria["Q"][output_iter] * (
+                    self.criteria["beta_Q"][output_iter] ** counter
+                )
+        for output_iter in range(0, self.n_outputs):
+            counter = -1
+            pre = self.N * self.finish_length + (self.channels * self.finish_length)
+            for iterator in range(
+                pre + (output_iter * self.init_length),
+                pre + ((output_iter + 1) * self.init_length),
+            ):
+                counter += 1
+                D0[iterator][iterator] = self.criteria["lambda_y"][output_iter] * (
+                    self.criteria["beta_lambda_y"][output_iter] ** counter
+                )
+        
+        print(D0)
         
         raise NotImplementedError("Method not implemented")
         

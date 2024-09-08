@@ -116,8 +116,8 @@ def test_SISO():
         
 # Check if the script is being run as the main module
 if __name__ == "__main__":
-    test_MIMO()
-    #test_SISO()
+    #test_MIMO()
+    test_SISO()
     exit()
     
     # Call the function to print "Hello, World!"
