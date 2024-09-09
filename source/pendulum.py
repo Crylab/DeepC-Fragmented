@@ -26,7 +26,7 @@ class Pendulum:
         self.x = 0.0
         self.x_d = 0.0
         
-    def Step(self, input: float) -> None:
+    def Step(self, input: float) -> float:
         term1 = (input-self.parameters["damping"]*self.x_d)/self.parameters["mass"]
         term2 = self.parameters["gravity"]*np.sin(self.x)/self.parameters["length"]
         x_d_p = self.x_d + ((term1-term2))*self.dt
@@ -35,6 +35,10 @@ class Pendulum:
         self.x = x_p
         self.x_d = x_d_p
         return self.x
+    
+    def Initialization(self, x: float = 0.0, x_d: float = 0.0) -> None:
+        self.x = x
+        self.x_d = x_d
     
 class Pendulum_tracking:
     def set_default_parameters(self, dict_in: dict, name: str, value) -> None:
@@ -58,16 +62,48 @@ class Pendulum_tracking:
         self.set_default_parameters(parameters, 'prediction_horizon', 4)
         self.set_default_parameters(parameters, 'dt', 0.1)
         self.set_default_parameters(parameters, 'algorithm', "deepc")
+        self.set_default_parameters(parameters, 'seed', 1)
+        
+        np.random.seed(self.parameters['seed'])
     
         self.parameters["n_inputs"] = 1
         self.parameters["n_outputs"] = 1
             
-        self.model = Pendulum(parameters)
+        self.model = Pendulum(self.parameters)
+        self.parameters.update(self.model.parameters)
+        
+        
         if self.parameters['algorithm'] == "deepcf":
-            self.solver = deepcf.DeepC_Fragment(parameters)
+            self.solver = deepcf.DeepC_Fragment(self.parameters)
         elif self.parameters['algorithm'] == "deepc":
-            self.solver = deepc.DeepC(parameters)
+            self.solver = deepc.DeepC(self.parameters)
         else:
             raise ValueError("Invalid algorithm")
+        
+    def trajectory_generation(self, x: float, x_d: float, l: int):
+        
+        self.model.Initialization(x, x_d)
+        max_input = self.parameters["max_input"]
+        tau = 2 * max_input * np.random.random(l) - max_input
+        out = np.zeros(l)
+        out[0] = x
+        for t in range(1, l):
+            x_p = self.model.Step(tau[t-1])
+            out[t] = x_p
+        return tau, out
+        
+    def dataset_generation(self) -> None:
+        dataset_inputs = []
+        dataset_outputs = []
+        for i in range(0, self.parameters["N"]):
+            realization_outputs = []
+            realization_actions = []
+    
+            for t in range(0, self.parameters["initial_horizon"] + self.parameters["prediction_horizon"]):
+                realization_actions.append(np.array([0.1+t/100+i/1000]))
+                realization_outputs.append(np.array([0.2+t/100+i/1000]))
+            dataset_inputs.append(np.array(realization_actions).T)
+            dataset_outputs.append(np.array(realization_outputs).T)
+        self.solver.set_data(dataset_inputs, dataset_outputs)
         
     
