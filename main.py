@@ -13,6 +13,7 @@ import multiprocessing
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import source.deepcf as deepcf
+from source.pendulum import Pendulum_tracking
 
 # Define a function that prints "Hello, World!"
 def print_hello_world():
@@ -115,8 +116,21 @@ def test_SISO():
     result = obj.solve() 
     print(result)
         
+def test_pendulum():
+    params = {
+        "dt": 0.1,
+        "tracking_time": 50,
+    }
+    obj = Pendulum_tracking(params)
+    obj.trajectory_tracking()
+    print("Dataset generated")
+    
+        
 # Check if the script is being run as the main module
 if __name__ == "__main__":
+    test_pendulum()
+    exit()
+    
     test_MIMO()
     test_SISO()
     exit()
