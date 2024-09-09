@@ -26,10 +26,10 @@ class Pendulum:
         self.x = 0.0
         self.x_d = 0.0
         
-    def Step(self, input_in: float) -> float:
-        if input_in > self.parameters["max_input"]:
+    def Step(self, input: float) -> float:
+        if input > self.parameters["max_input"]:
             input = self.parameters["max_input"]
-        elif input_in < -self.parameters["max_input"]:
+        elif input < -self.parameters["max_input"]:
             input = -self.parameters["max_input"]
         
         term1 = (input-self.parameters["damping"]*self.x_d)/self.parameters["mass"]
@@ -100,15 +100,13 @@ class Pendulum_tracking:
     def dataset_generation(self) -> None:
         dataset_inputs = []
         dataset_outputs = []
-        for i in range(0, self.parameters["N"]):
-            realization_outputs = []
-            realization_actions = []
-    
-            for t in range(0, self.parameters["initial_horizon"] + self.parameters["prediction_horizon"]):
-                realization_actions.append(np.array([0.1+t/100+i/1000]))
-                realization_outputs.append(np.array([0.2+t/100+i/1000]))
-            dataset_inputs.append(np.array(realization_actions).T)
-            dataset_outputs.append(np.array(realization_outputs).T)
+        for i in range(0, self.parameters["N"]):    
+            total_length = self.parameters["initial_horizon"] + self.parameters["prediction_horizon"]
+            init_x = (2*np.random.random()-1) * np.pi
+            init_x_d = (2*np.random.random()-1) * np.pi
+            tau, out = self.trajectory_generation(init_x, init_x_d, total_length)
+            dataset_inputs.append([tau])
+            dataset_outputs.append([out])
         self.solver.set_data(dataset_inputs, dataset_outputs)
         
     
