@@ -15,10 +15,6 @@ from matplotlib import cm
 import source.deepcf as deepcf
 from source.pendulum import Pendulum_tracking
 
-# Define a function that prints "Hello, World!"
-def print_hello_world():
-    print("Hello, World!")
-        
 def test_MIMO():
     print("Test")
     params = {
@@ -116,38 +112,111 @@ def test_SISO():
     result = obj.solve() 
     print(result)
         
-def test_pendulum():
-    params = {
-        "dt": 0.1,
-        "tracking_time": 50,
-    }
+def experiment_pendulum(params = {}):
+    params["algorithm"] = "deepc"
     obj = Pendulum_tracking(params)
     obj.trajectory_tracking()
-    print("Dataset generated")
+    deepc_rss = obj.rss
     
+    #########
+    
+    params["algorithm"] = "deepcf"
+    obj = Pendulum_tracking(params)
+    obj.trajectory_tracking()
+    deepcf_rss = obj.rss
+    
+    print("RSS DeepC: ", deepc_rss)
+    print("RSS DeepCF: ", deepcf_rss)
+    
+def experiment_pendulum_stable(params = {}):
+    traj = np.ones(100) * np.pi / 8
+    params["algorithm"] = "deepc"
+    obj = Pendulum_tracking(params)
+    obj.set_trajectory(traj)
+    deepc_track = obj.trajectory_tracking()
+    deepc_rss = obj.rss
+    
+    #########
+    
+    params["algorithm"] = "deepcf"
+    obj = Pendulum_tracking(params)
+    obj.set_trajectory(traj)
+    deepcf_track = obj.trajectory_tracking()
+    deepcf_rss = obj.rss
+    
+    print("RSS DeepC: ", deepc_rss)
+    print("RSS DeepCF: ", deepcf_rss)
+    
+    # Plot the chart
+    plt.figure()
+    plt.plot(deepc_track, label="DeepC")
+    plt.plot(deepcf_track, label="DeepCF")
+    plt.plot(traj, label="Reference", linestyle="--")
+    plt.xlabel("Time")
+    plt.ylabel("Angle")
+    plt.title("Pendulum Tracking")
+    plt.legend()
+    plt.show()
+    
+def path():
+    # Generate values from 0 to pi/2
+    x = np.linspace(-np.pi / 2, np.pi / 2, 100)
+    y = (np.sin(x)+1)/2.6
+    temp = np.ones(100)/1.3
+    y_comb = np.concatenate((y, temp))
+    return y_comb
+
+def experiment_pendulum_transit(params = {}):
+    params["algorithm"] = "deepc"
+    obj = Pendulum_tracking(params)
+    obj.set_trajectory(path())
+    deepc_track = obj.trajectory_tracking()
+    deepc_rss = obj.rss
+    
+    #########
+    
+    params["algorithm"] = "deepcf"
+    params["lambda_g"] = 1.0
+    params["lambda_y"] = [1e12]
+    obj = Pendulum_tracking(params)
+    obj.set_trajectory(path())
+    deepcf_track = obj.trajectory_tracking()
+    deepcf_rss = obj.rss
+    
+    print("RSS DeepC: ", deepc_rss)
+    print("RSS DeepCF: ", deepcf_rss)
+    
+    # Plot the chart
+    plt.figure()
+    plt.plot(deepc_track, label="DeepC")
+    plt.plot(deepcf_track, label="DeepCF")
+    plt.plot(path(), label="Reference", linestyle="--")
+    plt.xlabel("Time")
+    plt.ylabel("Angle")
+    plt.title("Pendulum Tracking")
+    plt.legend()
+    plt.show()
         
 # Check if the script is being run as the main module
-if __name__ == "__main__":
-    test_pendulum()
+if __name__ == "__main__":    
+    params = {
+        "lambda_g": 1.0,
+        "lambda_y": [1e6],
+        "Q": [400],
+        "R": [0.00001],
+        "dt": 0.01,
+        "seed": 1,
+        "N": 100,
+        "max_input": 50.0,
+        "initial_horizon": 2,
+        "prediction_horizon": 3,
+        "tracking_time": 200,
+    }
+    
+    experiment_pendulum_transit(params)
     exit()
     
     test_MIMO()
     test_SISO()
     exit()
-    
-    # Call the function to print "Hello, World!"
-    print_hello_world()
-    
-    params = {
-        "N": 100,
-        "initial_horizon": 3,
-        "prediction_horizon": 8,
-        "n_inputs": 2,
-        "n_outputs": 4,
-    }
-    
-    obj = deepcf.local_deepc_tracking({})
-    obj.trajectory_tracking()
-    
-    print("End")
     

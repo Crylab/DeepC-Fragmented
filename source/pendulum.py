@@ -66,7 +66,7 @@ class Pendulum_tracking:
         self.set_default_parameters(parameters, "lambda_g", 1.0)
         self.set_default_parameters(parameters, 'initial_horizon', 1)
         self.set_default_parameters(parameters, 'prediction_horizon', 4)
-        self.set_default_parameters(parameters, 'dt', 0.1)
+        self.set_default_parameters(parameters, 'dt', 0.05)
         self.set_default_parameters(parameters, 'algorithm', "deepc")
         self.set_default_parameters(parameters, 'seed', 1)
         self.set_default_parameters(parameters, 'tracking_time', 100)
@@ -84,7 +84,7 @@ class Pendulum_tracking:
         self.parameters["n_inputs"] = 1
         self.parameters["n_outputs"] = 1
             
-        self.model = Pendulum(self.parameters)
+        self.model = Pendulum(parameters)
         self.parameters.update(self.model.parameters)
         
         
@@ -106,7 +106,7 @@ class Pendulum_tracking:
         out = np.zeros(l)
         out[0] = x
         for t in range(1, l):
-            x_p = self.model.Step(tau[t-1])
+            x_p = self.model.Step(tau[t])
             out[t] = x_p
         return tau, out
         
