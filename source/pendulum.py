@@ -26,7 +26,12 @@ class Pendulum:
         self.x = 0.0
         self.x_d = 0.0
         
-    def Step(self, input: float) -> float:
+    def Step(self, input_in: float) -> float:
+        if input_in > self.parameters["max_input"]:
+            input = self.parameters["max_input"]
+        elif input_in < -self.parameters["max_input"]:
+            input = -self.parameters["max_input"]
+        
         term1 = (input-self.parameters["damping"]*self.x_d)/self.parameters["mass"]
         term2 = self.parameters["gravity"]*np.sin(self.x)/self.parameters["length"]
         x_d_p = self.x_d + ((term1-term2))*self.dt
