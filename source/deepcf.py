@@ -41,7 +41,7 @@ class DeepC_Fragment(deepc.DeepC):
             test = -np.eye(2*self.finish_length);
         else:
             test = -np.eye(2*self.init_length)
-        test2 = np.roll(test, self.init_length-1-offset, axis=0)
+        test2 = np.roll(test, self.init_length-offset, axis=0)
         matrix = test2[0:self.init_length+1, 0:self.finish_length]
         return matrix
     
@@ -99,7 +99,7 @@ class DeepC_Fragment(deepc.DeepC):
         
         # D1 Matrix
         
-        com = self.N * self.finish_length + (self.channels * self.finish_length) + (self.n_outputs * self.init_length)
+        com = self.N * self.finish_length + (self.channels * self.finish_length) + (self.n_outputs * (self.init_length + self.finish_length - 1))
         D0 = self.criteria["lambda_g"] * np.identity(com)
         for input_iter in range(0, self.n_inputs):
             counter = -1
@@ -125,8 +125,8 @@ class DeepC_Fragment(deepc.DeepC):
             counter = -1
             pre = self.N * self.finish_length + (self.channels * self.finish_length)
             for iterator in range(
-                pre + (output_iter * self.init_length),
-                pre + ((output_iter + 1) * self.init_length),
+                pre + (output_iter * (self.init_length + self.finish_length - 1)),
+                pre + ((output_iter + 1) * (self.init_length + self.finish_length - 1)),
             ):
                 counter += 1
                 D0[iterator][iterator] = self.criteria["lambda_y"][output_iter] * (
@@ -139,7 +139,7 @@ class DeepC_Fragment(deepc.DeepC):
             E1[i] *= -self.criteria["Q"][i]
         E2 = np.concatenate(E1)
         F1 = np.zeros(self.N * self.finish_length + (self.n_inputs * self.finish_length))
-        F2 = np.zeros(self.n_outputs * self.init_length)
+        F2 = np.zeros(self.n_outputs * (self.init_length + self.finish_length - 1))
         E0 = np.concatenate((F1, E2, F2))
         
         # B1 Matrix
@@ -176,4 +176,28 @@ class DeepC_Fragment(deepc.DeepC):
         if results.info.status_val != 1:
             return None
         return results
+    
+    def solve(self):
+        """
+        Solve the optimization problem and extract the solution.
+        
+        Inputs:
+        - None
+        
+        Outputs:
+        - solution (np.ndarray): The optimized solution for the input channels.
+        
+        Raises:
+        - None
+        """
+        results = self.solve_raw()
+        if results is None:
+            return None        
+        solution = np.array([[0.0] * self.finish_length] * self.n_inputs)
+        for input_iter in range(0, self.n_inputs):
+            solution[input_iter] = results.x[
+                self.N * self.finish_length + (input_iter * self.finish_length) : self.N * self.finish_length + ((input_iter + 1) * self.finish_length)
+            ]
+        return solution
+    
         
