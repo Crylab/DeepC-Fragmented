@@ -166,57 +166,102 @@ def path():
     y_comb = np.concatenate((y, temp))
     return y_comb
 
-def experiment_pendulum_transit(params = {}):
-    params["algorithm"] = "deepc"
+def path2():
+    temp = np.ones(200)/1.3
+    return temp
+
+def experiment_pendulum_transit(params):
     obj = Pendulum_tracking(params)
-    obj.set_trajectory(path())
-    deepc_track = obj.trajectory_tracking()
-    deepc_rss = obj.rss
-    
-    #########
-    
-    params["algorithm"] = "deepcf"
-    params["lambda_g"] = 1.0
-    params["lambda_y"] = [1e12]
-    obj = Pendulum_tracking(params)
-    obj.set_trajectory(path())
+    obj.set_trajectory(path2())
     deepcf_track = obj.trajectory_tracking()
-    deepcf_rss = obj.rss
+    rss = obj.rss
+    return rss
     
-    print("RSS DeepC: ", deepc_rss)
-    print("RSS DeepCF: ", deepcf_rss)
-    
-    # Plot the chart
-    plt.figure()
-    plt.plot(deepc_track, label="DeepC")
-    plt.plot(deepcf_track, label="DeepCF")
-    plt.plot(path(), label="Reference", linestyle="--")
-    plt.xlabel("Time")
-    plt.ylabel("Angle")
-    plt.title("Pendulum Tracking")
-    plt.legend()
-    plt.show()
-        
 # Check if the script is being run as the main module
 if __name__ == "__main__":    
     params = {
-        "lambda_g": 1.0,
-        "lambda_y": [1e6],
+        "lambda_g": 10.0,
+        "lambda_y": [1e2],
         "Q": [400],
         "R": [0.00001],
         "dt": 0.01,
         "seed": 1,
-        "N": 100,
-        "max_input": 50.0,
+        "N": 20,
+        "max_input": 20.0,
         "initial_horizon": 2,
-        "prediction_horizon": 3,
+        "prediction_horizon": 10,
         "tracking_time": 200,
     }
+    N_seeds = 2
+    deepc_dataset = []
+    deepc_var = []
+    deepcf_dataset = []
+    deepcf_var = []
+    #param_range = range(1, 10)
+    param_range = np.logspace(-4, 2, num=20)
+    for j in param_range:
+        deepc_seeds = []
+        params["algorithm"] = "deepc"
+        params["lambda_g"] = j
+        for i in range(0, N_seeds):
+            params["seed"] = i
+            try:
+                rss = experiment_pendulum_transit(params)
+                deepc_seeds.append(rss)
+            except:
+                pass
+        deepc_dataset.append(np.mean(deepc_seeds))
+        deepc_var.append(np.var(deepc_seeds))
+        
+        deepcf_seeds = []
+        params["algorithm"] = "deepcf"
+        for i in range(0, N_seeds):
+            params["seed"] = i
+            try:
+                rss = experiment_pendulum_transit(params)
+                deepcf_seeds.append(rss)
+            except:
+                pass
+        deepcf_dataset.append(np.mean(deepcf_seeds))
+        deepcf_var.append(np.var(deepcf_seeds))
+        
+    # Plot the chart
+    plt.figure()
+    plt.plot(param_range, deepc_dataset, label="DeepC", color="red")
+    plt.fill_between(param_range, np.array(deepc_dataset) - np.sqrt(deepc_var),
+                     np.array(deepc_dataset) + np.sqrt(deepc_var), alpha=0.2, color="red")
+    plt.plot(param_range, deepcf_dataset, label="DeepCF", color="blue")
+    plt.fill_between(param_range, np.array(deepcf_dataset) - np.sqrt(deepcf_var), 
+                     np.array(deepcf_dataset) + np.sqrt(deepcf_var), alpha=0.2, color="blue")
+    plt.xlabel("Lambda_g")
+    plt.ylabel("RSS")
+    plt.yscale("log")
+    plt.xscale("log")
+    plt.title("RSS Comparison between DeepC and DeepCF")
+    plt.legend()
+    plt.savefig("img/rss_comparison.pdf")
+    plt.show()
+        
     
-    experiment_pendulum_transit(params)
+        
     exit()
     
     test_MIMO()
     test_SISO()
+    
+    # Plot the chart
+    if False:
+        plt.figure()
+        if is_deepc:
+            plt.plot(deepc_track, label="DeepC")
+        plt.plot(deepcf_track, label="DeepCF")
+        plt.plot(path(), label="Reference", linestyle="--")
+        plt.xlabel("Time")
+        plt.ylabel("Angle")
+        plt.title("Pendulum Tracking")
+        plt.legend()
+        plt.show()
+    
+    
     exit()
     

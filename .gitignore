@@ -1,3 +1,4 @@
 /img
-
+/results
 *.pyc
+.DS_Store

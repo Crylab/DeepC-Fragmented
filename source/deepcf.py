@@ -10,6 +10,13 @@ import osqp
 import DeePC.source.deepc as deepc
 import DeePC.source.deepc_tracking as deepc_tracking
 
+class DEEPCF_Tracking(deepc_tracking.DEEPC_Tracking):
+    def __init__(self, params):
+        super().__init__(params)
+        self.algorithm = "deepcf"
+        self.deepc = DeepC_Fragment(self.parameters)
+        self.deepc.set_opt_criteria(self.parameters.copy())
+
 class DeepC_Fragment(deepc.DeepC):
     def dataset_reformulation(self, dataset_in):
         """
@@ -88,11 +95,11 @@ class DeepC_Fragment(deepc.DeepC):
         
         for o in range(0, self.finish_length):
             for i in range(0, self.n_inputs):
-                temp1 = np.concatenate((self.input_init[i], np.zeros(self.init_length)))
+                temp1 = np.concatenate((self.input_init[i], np.zeros(self.finish_length)))
                 temp2 = np.roll(temp1, -o)[0:self.init_length]
                 C1 = np.concatenate((C1, temp2, np.array([0.0])))
             for i in range(0, self.n_outputs):
-                temp1 = np.concatenate((self.output_init[i], np.zeros(self.init_length)))
+                temp1 = np.concatenate((self.output_init[i], np.zeros(self.finish_length)))
                 temp2 = np.roll(temp1, -o)[0:self.init_length]
                 C1 = np.concatenate((C1, temp2, np.array([0.0])))
         
@@ -157,7 +164,7 @@ class DeepC_Fragment(deepc.DeepC):
         for j in range(0, self.finish_length):
             mat_in = np.zeros((
                 self.n_inputs*(self.init_length+1), 
-                (self.init_length+self.finish_length-1)*self.n_inputs
+                self.init_length*self.finish_length*self.n_outputs
             ))
             mat_out = block_diag(*([self.sigma_matrix(j)] * self.n_outputs))
             mat = np.concatenate((mat_in, mat_out))
@@ -167,7 +174,7 @@ class DeepC_Fragment(deepc.DeepC):
                 B32 = np.concatenate((B32, mat))
         
         B1 = np.concatenate((self.H.T, B31, B32), axis=1)
-        
+        #self.show_matrix(B1)
         self.solver = osqp.OSQP()
         D0_sparse = sparse.csc_matrix(D0)
         B1_sparse = sparse.csc_matrix(B1)
