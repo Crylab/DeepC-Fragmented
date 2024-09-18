@@ -37,8 +37,8 @@ def run_experiment(dict_in: dict):
 # Check if the script is being run as the main module
 if __name__ == "__main__":  
     # Define the parameters for the experiment
-    range_g = np.logspace(-2, 2, num=2)
-    range_y = np.logspace(-2, 2, num=2)
+    range_g = np.logspace(-2, 2, num=10)
+    range_y = np.logspace(-2, 2, num=10)
     tasks = []
     for lambda_g in range_g:
         for lambda_y in range_y:
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     X, Y = np.meshgrid(range_g, range_y)
 
     # Reshape z to match the 10x10 grid
-    Z = np.array(res).reshape(2, 2)
+    Z = np.array(res).reshape(10, 10)
 
     # Create a 3D plot
     fig = plt.figure()
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     ax.set_zlabel('RSS')
 
     # Show the plot
-    plt.show()
+    plt.savefig("img/RSS_plot.pdf")
     
     
     
