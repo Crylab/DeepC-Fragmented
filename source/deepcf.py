@@ -106,7 +106,7 @@ class DeepC_Fragment(deepc.DeepC):
         
         # D1 Matrix
         
-        com = self.N * self.finish_length + (self.channels * self.finish_length) + (self.n_outputs * (self.init_length + self.finish_length - 1))
+        com = self.N * self.finish_length + (self.channels * self.finish_length) + (self.n_outputs * self.init_length)
         D0 = self.criteria["lambda_g"] * np.identity(com)
         for input_iter in range(0, self.n_inputs):
             counter = -1
@@ -132,8 +132,8 @@ class DeepC_Fragment(deepc.DeepC):
             counter = -1
             pre = self.N * self.finish_length + (self.channels * self.finish_length)
             for iterator in range(
-                pre + (output_iter * (self.init_length + self.finish_length - 1)),
-                pre + ((output_iter + 1) * (self.init_length + self.finish_length - 1)),
+                pre + (output_iter * self.init_length),
+                pre + ((output_iter + 1) * self.init_length),
             ):
                 counter += 1
                 D0[iterator][iterator] = self.criteria["lambda_y"][output_iter] * (
@@ -146,7 +146,7 @@ class DeepC_Fragment(deepc.DeepC):
             E1[i] *= -self.criteria["Q"][i]
         E2 = np.concatenate(E1)
         F1 = np.zeros(self.N * self.finish_length + (self.n_inputs * self.finish_length))
-        F2 = np.zeros(self.n_outputs * (self.init_length + self.finish_length - 1))
+        F2 = np.zeros(self.n_outputs * self.init_length)
         E0 = np.concatenate((F1, E2, F2))
         
         # B1 Matrix
@@ -164,9 +164,18 @@ class DeepC_Fragment(deepc.DeepC):
         for j in range(0, self.finish_length):
             mat_in = np.zeros((
                 self.n_inputs*(self.init_length+1), 
-                self.init_length*self.finish_length*self.n_outputs
+                (self.init_length)*self.n_outputs
             ))
-            mat_out = block_diag(*([self.sigma_matrix(j)] * self.n_outputs))
+            if j == 0:
+                temp1 = np.eye(self.init_length)
+                temp2 = np.zeros((1, self.init_length))
+                temp3 = np.concatenate((temp1, temp2))
+                mat_out = block_diag(*([temp3] * self.n_outputs))
+            else:
+                mat_out = np.zeros((
+                    self.n_outputs*(self.init_length+1), 
+                    (self.init_length)*self.n_outputs
+                ))
             mat = np.concatenate((mat_in, mat_out))
             if B32.size == 0:
                 B32 = mat
