@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import source.deepcf as deepcf
 import DeePC.source.deepc_tracking as deepc_tracking
-from mpl_toolkits.mplot3d import Axes3D
+from DeePC.source import graph
 
 def run_experiment(dict_in: dict):
     """
@@ -31,59 +31,384 @@ def run_experiment(dict_in: dict):
     elif dict_in["algorithm"] == "deepc":
         obj = deepc_tracking.DEEPC_Tracking(dict_in)
     obj.trajectory_tracking()
-    rss = obj.rss
+    rss = float(obj.rss)
     return rss
     
-# Check if the script is being run as the main module
-if __name__ == "__main__":  
+def run_30_exp(dict_in: dict, n_seeds: int = 30):
+    """
+    Run 30 experiments based on the specified algorithm.
+
+    Arguments:
+    dict_in -- dictionary containing configuration parameters, including the algorithm to use.
+
+    Returns:
+    rss -- Residual Sum of Squares (RSS) of the tracking deviation.
+    """
+    rss = 0
+    count = 0
+    for i in range(n_seeds):
+        local_dict = dict_in.copy()
+        local_dict["seed"] = i
+        count += 1
+        try:
+            rss += run_experiment(local_dict)
+        except:
+            pass
+    return rss / count
+    
+def plot_lambda_g(N: int = 25):
+    """
+    Plot the effect of lambda_y on the tracking deviation.
+    """
     # Define the parameters for the experiment
-    range_g = np.logspace(-2, 2, num=10)
-    range_y = np.logspace(-2, 2, num=10)
-    tasks = []
+    range_g = np.logspace(-3, 0, 30)
+    deepc_list = []
+    deepcf_list = []
+    for lambda_g in range_g:
+        parameters = {
+            "algorithm": "deepc",
+            "prediction_horizon": 8,
+            "Q": [1, 1, 1, 100],
+            "R": [0.1, 0.1],
+            "N": N,
+            "lambda_g": float(lambda_g),
+            "lambda_y": [float(50000)] * 4,
+            "Lissajous_circle_time": 3700,
+            "seed": 4,
+            #"print_out": "Nothing",
+        }
+        result = run_experiment(parameters)
+        deepc_list.append(result)
+        parameters["algorithm"] = "deepcf"
+        result = run_experiment(parameters)
+        deepcf_list.append(result)
+        
+    # Plot the effect of lambda_y on the tracking deviation
+    fig = plt.figure()
+    plt.plot(range_g, deepc_list, label='DeepC')
+    plt.plot(range_g, deepcf_list, label='DeepCF')
+    plt.xlabel('lambda_g')
+    plt.ylabel('RSS')
+    plt.xscale('log')
+    plt.grid()
+    plt.legend()
+    plt.title('Effect of lambda_g on RSS')
+    plt.savefig(f'img/DeePCN{N}-lambda_g.pdf')
+    plt.show()
+    
+def plot_lambda_y():
+    """
+    Plot the effect of lambda_y on the tracking deviation.
+    """
+    n_seeds = 3
+    # Define the parameters for the experiment
+    range_g = [0.57]#np.logspace(-1, 1, 30)
+    range_y = np.logspace(0, 6, 30)
+    deepc_list = []
+    deepc_var = []
     for lambda_g in range_g:
         for lambda_y in range_y:
+            seed_list = []
+            for seed in range(n_seeds):
+                parameters = {
+                    "algorithm": "deepc",
+                    "prediction_horizon": 8,
+                    "Q": [1, 1, 1, 100],
+                    "R": [0.1, 0.1],
+                    "N": 50,
+                    "lambda_g": float(lambda_g),
+                    "lambda_y": [float(lambda_y)] * 4,
+                    "Lissajous_circle_time": 3700,
+                    "seed": seed,
+                    #"print_out": "Nothing",
+                }
+                result = run_experiment(parameters)
+                seed_list.append(result)
+            deepc_list.append(np.mean(seed_list))
+        deepc_var.append(np.var(seed_list))
+        
+    # Define the parameters for the experiment
+    range_g = [0.13]#np.logspace(-1, 1, 30)
+    deepcf_list = []
+    deepcf_var = []
+    for lambda_g in range_g:
+        for lambda_y in range_y:
+            seed_list = []
+            for seed in range(n_seeds):
+                parameters = {
+                    "algorithm": "deepcf",
+                    "prediction_horizon": 8,
+                    "Q": [1, 1, 1, 100],
+                    "R": [0.1, 0.1],
+                    "N": 50,
+                    "lambda_g": float(lambda_g),
+                    "lambda_y": [float(lambda_y)] * 4,
+                    "Lissajous_circle_time": 3700,
+                    "seed": seed,
+                    #"print_out": "Nothing",
+                }
+                result = run_experiment(parameters)
+                seed_list.append(result)
+            deepcf_list.append(np.mean(seed_list))
+        deepcf_var.append(np.var(seed_list))
+           
+    # Plot the effect of lambda_y on the tracking deviation
+    fig = plt.figure()
+    plt.plot(range_y, deepc_list, label='DeepC')
+    plt.plot(range_y, deepcf_list, label='DeepCF')
+    #plt.fill_between(range_y, np.array(deepc_list) - np.array(deepc_var),
+    #                 np.array(deepc_list) + np.array(deepc_var), alpha=0.2)
+    plt.xlabel('lambda_y')
+    plt.ylabel('RSS')
+    plt.xscale('log')
+    plt.grid()
+    plt.legend()
+    plt.title('Effect of lambda_g on RSS')
+    plt.savefig("img/DeePCN50-lambda_y.pdf")
+    
+def dataset_variation():
+    """
+    Plot the effect of dataset size (N) on the tracking deviation.
+    """
+    
+    deepc_list = []
+    R = 0.1
+    n_seeds = 30
+    lambda_y = 50000
+    dataset_list = range(2, 25)
+    deepcf_list = []
+    deepcf_var = []
+    deepc_list = []
+    deepc_var = []
+    for N in dataset_list:
+        seed_list = []
+        for seed in range(n_seeds):
+            
             parameters = {
                 "algorithm": "deepcf",
                 "prediction_horizon": 8,
                 "Q": [1, 1, 1, 100],
-                "R": [0.1, 0.1],
-                "N": 50,
-                "lambda_g": lambda_g,
+                "R": [R] * 2,
+                "N": N,
+                "lambda_g": 0.06,
                 "lambda_y": [lambda_y] * 4,
                 "Lissajous_circle_time": 3700,
-                #"print_out": "Nothing",
+                "seed": seed,
             }
-            tasks.append(parameters.copy())
+            try:
+                result = run_experiment(parameters)
+                seed_list.append(result)
+            except:
+                pass
+        deepcf_list.append(np.mean(seed_list))
+        deepcf_var.append(np.var(seed_list))
+        seed_list = []
+        for seed in range(n_seeds):
             
-    # Run the experiment in parallel
-    pool = multiprocessing.Pool(processes=90)
-    res = pool.map(run_experiment, tasks)
-    pool.close()
-    pool.join()
-    print(res)
+            parameters = {
+                "algorithm": "deepc",
+                "prediction_horizon": 8,
+                "Q": [1, 1, 1, 100],
+                "R": [R] * 2,
+                "N": N,
+                "lambda_g": 0.2,
+                "lambda_y": [lambda_y] * 4,
+                "Lissajous_circle_time": 3700,
+                "seed": seed,
+            }
+            try:
+                result = run_experiment(parameters)
+                seed_list.append(result)
+            except:
+                pass
+        deepc_list.append(np.mean(seed_list))
+        deepc_var.append(np.var(seed_list))
     
-    # Create a meshgrid for x and y
-    X, Y = np.meshgrid(range_g, range_y)
-
-    # Reshape z to match the 10x10 grid
-    Z = np.array(res).reshape(10, 10)
-
-    # Create a 3D plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    # Plot the surface
-    ax.plot_surface(X, Y, Z, cmap='viridis')
-
-    # Add labels
-    ax.set_xlabel('lambda_g')
-    ax.set_ylabel('lambda_y')
-    ax.set_zlabel('RSS')
-
-    # Show the plot
-    plt.savefig("img/RSS_plot.pdf")
+    if True:
+        fig = plt.figure()
+        plt.plot(dataset_list, deepc_list, label='DeepC')
+        plt.plot(dataset_list, deepcf_list, label='DeepCF')
+        plt.fill_between(dataset_list, 
+                         np.array(deepc_list) - np.array(deepc_var), 
+                         np.array(deepc_list) + np.array(deepc_var), 
+                         alpha=0.2)
+        print(deepc_var)
+        plt.fill_between(dataset_list, 
+                         np.array(deepcf_list) - np.array(deepcf_var), 
+                         np.array(deepcf_list) + np.array(deepcf_var), 
+                         alpha=0.2)
+        plt.xlabel('N')
+        plt.ylabel('RSS')
+        plt.yscale('log')
+        plt.grid()
+        plt.legend()
+        plt.title('Effect of Dataset size (N) on RSS of tracking deviation')
+        plt.savefig(f'img/Dataset-variation.pdf')
+        
     
+def dataset_variation_high():
+    """
+    Plot the effect of dataset size (N) on the tracking deviation.
+    """
     
+    deepc_list = []
+    R = 0.1
+    n_seeds = 30
+    lambda_y = 50000
+    dataset_list = range(25, 125, 25)
+    deepcf_list = []
+    deepcf_var = []
+    deepc_list = []
+    deepc_var = []
+    for N in dataset_list:
+        seed_list = []
+        for seed in range(n_seeds):
+            
+            parameters = {
+                "algorithm": "deepcf",
+                "prediction_horizon": 8,
+                "Q": [1, 1, 1, 100],
+                "R": [R] * 2,
+                "N": N,
+                "lambda_g": float(N)/500.0,
+                "lambda_y": [lambda_y] * 4,
+                "Lissajous_circle_time": 3700,
+                "seed": seed,
+            }
+            try:
+                result = run_experiment(parameters)
+                seed_list.append(result)
+            except:
+                pass
+        deepcf_list.append(np.mean(seed_list))
+        deepcf_var.append(np.var(seed_list))
+        seed_list = []
+        for seed in range(n_seeds):
+            
+            parameters = {
+                "algorithm": "deepc",
+                "prediction_horizon": 8,
+                "Q": [1, 1, 1, 100],
+                "R": [R] * 2,
+                "N": N,
+                "lambda_g": float(N)/250.0,
+                "lambda_y": [lambda_y] * 4,
+                "Lissajous_circle_time": 3700,
+                "seed": seed,
+            }
+            try:
+                result = run_experiment(parameters)
+                seed_list.append(result)
+            except:
+                pass
+        deepc_list.append(np.mean(seed_list))
+        deepc_var.append(np.var(seed_list))
     
+    if True:
+        fig = plt.figure()
+        plt.plot(dataset_list, deepc_list, label='DeepC')
+        plt.plot(dataset_list, deepcf_list, label='DeepCF')
+        plt.fill_between(dataset_list, 
+                         np.array(deepc_list) - np.array(deepc_var), 
+                         np.array(deepc_list) + np.array(deepc_var), 
+                         alpha=0.2)
+        print(deepc_var)
+        plt.fill_between(dataset_list, 
+                         np.array(deepcf_list) - np.array(deepcf_var), 
+                         np.array(deepcf_list) + np.array(deepcf_var), 
+                         alpha=0.2)
+        plt.xlabel('N')
+        plt.ylabel('RSS')
+        plt.grid()
+        plt.legend()
+        plt.title('Effect of Dataset size (N) on RSS of tracking deviation')
+        plt.savefig(f'img/Dataset-variation-big.pdf')
+        
+        
+def animation_of_deepcf():
+    seed = 10 # 7 -> 3.44
     
+    parameters_deepc = {
+        "algorithm": "deepc",
+        "prediction_horizon": 8,
+        "Q": [1, 1, 1, 100],
+        "R": [0.1] * 2,
+        "N": 19,
+        "lambda_g": 0.2,
+        "lambda_y": [50000] * 4,
+        "Lissajous_circle_time": 3700,
+        "seed": seed,
+    }
+    obj = deepc_tracking.DEEPC_Tracking(parameters_deepc)
+    traj_deepc = obj.trajectory_tracking()
+    print("DeepC: ", obj.rss)
+    
+    parameters_deepc = {
+        "algorithm": "deepcf",
+        "prediction_horizon": 8,
+        "Q": [1, 1, 1, 100],
+        "R": [0.1] * 2,
+        "N": 19,
+        "lambda_g": 0.06,
+        "lambda_y": [50000] * 4,
+        "Lissajous_circle_time": 3700,
+        "seed": seed,
+    }
+    obj = deepcf.DEEPCF_Tracking(parameters_deepc)
+    traj_deepcf = obj.trajectory_tracking()
+    print("DeepCF: ", obj.rss)
+        
+    # Visual parameters
+    visual_params = {
+        "name": "∞-shape tracking with the same dataset N=19",
+        "xmin": -110,
+        "ymin": -110,
+        "xmax": 110,
+        "ymax": 110,
+        "vehicle_length": 5,
+        "vehicle_width": 2,
+    }
+    animation_obj = graph.graph_compete(visual_params)
+    animation_obj.add_state_path(traj_deepc, 'r', name='DeepC')
+    animation_obj.add_state_path(traj_deepcf, 'b', name='DeepCF')
+    animation_obj.add_state_landscape(obj.trajectory)
+    animation_obj.compression(10)
+    animation_obj.generate_gif(name='img/DeePC-Fragmentation.gif')
+    
+# Check if the script is being run as the main module
+if __name__ == "__main__":
+    #plot_lambda_y()
+    #dataset_variation()
+    #dataset_variation_high()
+    #plot_lambda_g(N=25)
+    animation_of_deepcf()
+    exit()
+    parameters = {
+        "algorithm": "deepcf",
+        "prediction_horizon": 8,
+        "Q": [1, 1, 1, 100],
+        "R": [0.1, 0.1],
+        "N": 25,
+        "lambda_g": 0.06,
+        "lambda_y": [float(50000)] * 4,
+        "Lissajous_circle_time": 3700,
+        "seed": 1,
+        #"print_out": "Nothing",
+    }
+    deepcf_res = run_30_exp(parameters, n_seeds=10)
+    parameters = {
+        "algorithm": "deepc",
+        "prediction_horizon": 8,
+        "Q": [1, 1, 1, 100],
+        "R": [0.1, 0.1],
+        "N": 25,
+        "lambda_g": 0.2,
+        "lambda_y": [float(50000)] * 4,
+        "Lissajous_circle_time": 3700,
+        "seed": 1,
+        #"print_out": "Nothing",
+    }
+    deepc_res = run_30_exp(parameters, n_seeds=10)
+    print("DeepCF: ", deepcf_res)
+    print("DeepC: ", deepc_res)
     
