@@ -61,8 +61,21 @@ class DeepC_Fragment(deepc.DeepC):
         return matrix
     
     def show_matrix(self, matrix: np.ndarray) -> None:
+        min_val = matrix.min()
+        max_val = matrix.max()
+        
+        def scale_value(x):
+            if x == -1:
+                return x  # Leave it unchanged if it's already -1
+            if x == 0:
+                return 1.0
+            return (x - min_val) / (max_val - min_val)
+    
+        # Apply scaling function to each element in the matrix
+        scaled_matrix = np.vectorize(scale_value)(matrix)
+        
         plt.ion()
-        plt.imshow(matrix, cmap="hot", interpolation="none")
+        plt.imshow(scaled_matrix, cmap="gray", interpolation="none")
         plt.savefig("img/matrix.pdf")
                 
     def solve_raw(self):
