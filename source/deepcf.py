@@ -75,7 +75,9 @@ class DeepC_Fragment(deepc.DeepC):
         scaled_matrix = np.vectorize(scale_value)(matrix)
         
         plt.ion()
+        fig, ax = plt.subplots(figsize=(7, 4))
         plt.imshow(scaled_matrix, cmap="gray", interpolation="none")
+        plt.tight_layout(rect=[0, 0.0, 1, 1])
         plt.savefig("img/matrix.pdf")
                 
     def solve_raw(self):
@@ -196,7 +198,7 @@ class DeepC_Fragment(deepc.DeepC):
                 B32 = np.concatenate((B32, mat))
         
         B1 = np.concatenate((self.H.T, B31, B32), axis=1)
-        #self.show_matrix(B1)
+        self.show_matrix(B1)
         self.solver = osqp.OSQP()
         D0_sparse = sparse.csc_matrix(D0)
         B1_sparse = sparse.csc_matrix(B1)
