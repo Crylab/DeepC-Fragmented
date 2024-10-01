@@ -15,6 +15,7 @@ from matplotlib import cm
 import source.deepcf as deepcf
 import DeePC.source.deepc_tracking as deepc_tracking
 from DeePC.source import graph
+import os
 
 def run_experiment(dict_in: dict):
     """
@@ -225,6 +226,8 @@ def dataset_variation():
         deepc_var.append(np.var(seed_list))
     
     if True:
+        if not os.path.exists('img'):
+            os.makedirs('img')
         fig = plt.figure()
         plt.plot(dataset_list, deepc_list, label='DeepC')
         plt.plot(dataset_list, deepcf_list, label='DeepCF')
@@ -375,40 +378,78 @@ def animation_of_deepcf():
     animation_obj.compression(10)
     animation_obj.generate_gif(name='img/DeePC-Fragmentation.gif')
     
+def try_run_experiment(parameters):
+        try:
+            return run_experiment(parameters)
+        except:
+            return np.nan
+    
+def parallel_dataset_variaion(n_seeds = 30):
+    """
+    Plot the effect of dataset size (N) on the tracking deviation.
+    """
+    deepc_list = []
+    dataset_list = range(2, 25)
+    execution_list = []
+    for alg in ["deepc", "deepcf"]:
+        for N in dataset_list:
+            for seed in range(n_seeds):            
+                parameters = {
+                    "algorithm": alg,
+                    "prediction_horizon": 8,
+                    "Q": [1, 1, 1, 100],
+                    "R": [0.1] * 2,
+                    "N": N,
+                    "lambda_g": 0.06,
+                    "lambda_y": [50000] * 4,
+                    "Lissajous_circle_time": 3700,
+                    "seed": seed,
+                }
+                execution_list.append(parameters)
+    
+    pool = multiprocessing.Pool(processes=90)
+    results = pool.map(try_run_experiment, execution_list)
+    data = {
+        "deepc": [],
+        "deepcf": [],
+        "deepc_var": [],
+        "deepcf_var": [],
+    }
+    for alg in ["deepc", "deepcf"]:
+        for N in dataset_list:
+            seed_list = []
+            for seed in range(n_seeds):
+                seed_list.append(results.pop(0))
+            data[alg].append(np.nanmean(seed_list))
+            data[alg + "_var"].append(np.nanvar(seed_list))   
+    
+    if True:
+        fig = plt.figure()
+        plt.plot(dataset_list, data["deepc"], label='DeepC')
+        plt.plot(dataset_list, data["deepcf"], label='DeepCF')
+        plt.fill_between(dataset_list, 
+                         np.array(data["deepc"]) - np.array(data["deepc_var"]), 
+                         np.array(data["deepc"]) + np.array(data["deepc_var"]), 
+                         alpha=0.2)
+        plt.fill_between(dataset_list, 
+                         np.array(data["deepcf"]) - np.array(data["deepcf_var"]), 
+                         np.array(data["deepcf"]) + np.array(data["deepcf_var"]), 
+                         alpha=0.2)
+        plt.xlabel('N')
+        plt.ylabel('RSS')
+        plt.yscale('log')
+        plt.grid()
+        plt.legend()
+        plt.title('Effect of Dataset size (N) on RSS of tracking deviation')
+        plt.savefig(f'img/Dataset-variation-parallel.pdf')
+    
 # Check if the script is being run as the main module
 if __name__ == "__main__":
     #plot_lambda_y()
     #dataset_variation()
     #dataset_variation_high()
     #plot_lambda_g(N=25)
-    animation_of_deepcf()
+    #animation_of_deepcf()
+    parallel_dataset_variaion(5)
     exit()
-    parameters = {
-        "algorithm": "deepcf",
-        "prediction_horizon": 8,
-        "Q": [1, 1, 1, 100],
-        "R": [0.1, 0.1],
-        "N": 25,
-        "lambda_g": 0.06,
-        "lambda_y": [float(50000)] * 4,
-        "Lissajous_circle_time": 3700,
-        "seed": 1,
-        #"print_out": "Nothing",
-    }
-    deepcf_res = run_30_exp(parameters, n_seeds=10)
-    parameters = {
-        "algorithm": "deepc",
-        "prediction_horizon": 8,
-        "Q": [1, 1, 1, 100],
-        "R": [0.1, 0.1],
-        "N": 25,
-        "lambda_g": 0.2,
-        "lambda_y": [float(50000)] * 4,
-        "Lissajous_circle_time": 3700,
-        "seed": 1,
-        #"print_out": "Nothing",
-    }
-    deepc_res = run_30_exp(parameters, n_seeds=10)
-    print("DeepCF: ", deepcf_res)
-    print("DeepC: ", deepc_res)
     
