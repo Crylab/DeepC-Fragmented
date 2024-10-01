@@ -13,8 +13,8 @@ import multiprocessing
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import source.deepcf as deepcf
-import DeePC.source.deepc_tracking as deepc_tracking
-from DeePC.source import graph
+import DeepC.source.deepc_tracking as deepc_tracking
+from DeepC.source import graph
 import os
 
 def run_experiment(dict_in: dict):
@@ -248,7 +248,6 @@ def dataset_variation():
         plt.title('Effect of Dataset size (N) on RSS of tracking deviation')
         plt.savefig(f'img/Dataset-variation.pdf')
         
-    
 def dataset_variation_high():
     """
     Plot the effect of dataset size (N) on the tracking deviation.
@@ -327,7 +326,6 @@ def dataset_variation_high():
         plt.title('Effect of Dataset size (N) on RSS of tracking deviation')
         plt.savefig(f'img/Dataset-variation-big.pdf')
         
-        
 def animation_of_deepcf():
     seed = 10 # 7 -> 3.44
     
@@ -388,7 +386,6 @@ def parallel_dataset_variaion(n_seeds = 30):
     """
     Plot the effect of dataset size (N) on the tracking deviation.
     """
-    deepc_list = []
     dataset_list = range(2, 25)
     execution_list = []
     for alg in ["deepc", "deepcf"]:
@@ -400,7 +397,7 @@ def parallel_dataset_variaion(n_seeds = 30):
                     "Q": [1, 1, 1, 100],
                     "R": [0.1] * 2,
                     "N": N,
-                    "lambda_g": 0.06,
+                    "lambda_g": 0.03 if alg == "deepcf" else 0.1,
                     "lambda_y": [50000] * 4,
                     "Lissajous_circle_time": 3700,
                     "seed": seed,
@@ -424,7 +421,7 @@ def parallel_dataset_variaion(n_seeds = 30):
             data[alg + "_var"].append(np.nanvar(seed_list))   
     
     if True:
-        fig = plt.figure()
+        fig = plt.figure(figsize=(7, 4))
         plt.plot(dataset_list, data["deepc"], label='DeepC')
         plt.plot(dataset_list, data["deepcf"], label='DeepCF')
         plt.fill_between(dataset_list, 
@@ -435,14 +432,155 @@ def parallel_dataset_variaion(n_seeds = 30):
                          np.array(data["deepcf"]) - np.array(data["deepcf_var"]), 
                          np.array(data["deepcf"]) + np.array(data["deepcf_var"]), 
                          alpha=0.2)
-        plt.xlabel('N')
-        plt.ylabel('RSS')
-        plt.yscale('log')
+        plt.xlabel('Dataset size, N')
+        plt.ylabel('Residual sum of squares (RSS) per step, m')
+        plt.yscale('symlog', linthresh=1)
+        plt.xlim([5, 24])
+        plt.ylim([0, 1000])
+        plt.xticks(range(5, 25, 5))
         plt.grid()
         plt.legend()
+        plt.tight_layout(rect=[0, 0, 1, 0.98])
         plt.title('Effect of Dataset size (N) on RSS of tracking deviation')
         plt.savefig(f'img/Dataset-variation-parallel.pdf')
     
+def plot_lambda_g_parallel(n_seeds = 30):
+    """
+    Plot the effect of dataset size (N) on the tracking deviation.
+    """
+    range_g = np.logspace(-3, 0, 30)
+    execution_list = []
+    for alg in ["deepc", "deepcf"]:
+        for lambda_g in range_g:
+            for seed in range(n_seeds):            
+                parameters = {
+                    "algorithm": alg,
+                    "prediction_horizon": 8,
+                    "Q": [1, 1, 1, 100],
+                    "R": [0.1] * 2,
+                    "N": 25,
+                    "lambda_g": lambda_g,
+                    "lambda_y": [50000] * 4,
+                    "Lissajous_circle_time": 3700,
+                    "seed": seed,
+                }
+                execution_list.append(parameters)
+    
+    pool = multiprocessing.Pool(processes=90)
+    results = pool.map(try_run_experiment, execution_list)
+    data = {
+        "deepc": [],
+        "deepcf": [],
+        "deepc_var": [],
+        "deepcf_var": [],
+    }
+    for alg in ["deepc", "deepcf"]:
+        for N in range_g:
+            seed_list = []
+            for seed in range(n_seeds):
+                if results[0] > 10:
+                    _ = results.pop(0)
+                else:
+                    seed_list.append(results.pop(0))
+            data[alg].append(np.nanmean(seed_list))
+            data[alg + "_var"].append(np.nanvar(seed_list))   
+    
+    if True:
+        fig = plt.figure(figsize=(7, 4))
+        plt.plot(range_g.tolist(), data["deepc"], label='DeepC')
+        plt.plot(range_g.tolist(), data["deepcf"], label='DeepCF')
+        #plt.fill_between(range_g.tolist(), 
+        #                 np.array(data["deepc"]) - np.array(data["deepc_var"]), 
+        #                 np.array(data["deepc"]) + np.array(data["deepc_var"]), 
+        #                 alpha=0.2)
+        #plt.fill_between(range_g.tolist(), 
+        #                 np.array(data["deepcf"]) - np.array(data["deepcf_var"]), 
+        #                 np.array(data["deepcf"]) + np.array(data["deepcf_var"]), 
+        #                 alpha=0.2)
+        plt.plot(0.15, 1.15,'*', color='b')
+        plt.plot(0.06, 1.1,'*', color='orange')
+        plt.xlabel('λ coefficient')
+        plt.ylabel('Residual sum of squares (RSS) per step, m')
+        plt.xscale('log')
+        plt.xlim([0.001, 1])
+        #plt.yscale('log')
+        plt.tight_layout(rect=[0, 0, 1, 0.98])
+        plt.grid()
+        plt.legend()
+        plt.title('Effect of λ on RSS of tracking deviation for N=25')
+        plt.savefig(f'img/Lambda-g-variation-parallel.pdf')
+    
+def Lissague_tracking_parallel(n_seeds = 30):
+    """
+    Plot the effect of Circle time on the tracking deviation.
+    """
+    circle_time = range(3500, 4200, 50)
+    execution_list = []
+    for N in [19, 25]:
+        for alg in ["deepc", "deepcf"]:
+            for circle in circle_time:
+                for seed in range(n_seeds):            
+                    parameters = {
+                        "algorithm": alg,
+                        "prediction_horizon": 8,
+                        "Q": [1, 1, 1, 100],
+                        "R": [0.1] * 2,
+                        "N": N,
+                        "lambda_g": 0.03 if alg == "deepcf" else 0.1,
+                        "lambda_y": [50000] * 4,
+                        "Lissajous_circle_time": circle,
+                        "seed": seed,
+                    }
+                    execution_list.append(parameters)
+    
+    pool = multiprocessing.Pool(processes=90)
+    results = pool.map(try_run_experiment, execution_list)
+    data = {
+        "deepc25": [],
+        "deepcf25": [],
+        "deepc19": [],
+        "deepcf19": [],
+        "deepc_var": [],
+        "deepcf_var": [],
+    }
+    for N in [19, 25]:
+        for alg in ["deepc", "deepcf"]:
+            for _ in circle_time:
+                seed_list = []
+                for seed in range(n_seeds):
+                    seed_list.append(results.pop(0))
+                data[alg+str(N)].append(np.nanmean(seed_list))
+                if N == 19:
+                    data[alg + "_var"].append(np.nanvar(seed_list))   
+    
+    if True:
+        argument = (np.array(circle_time)/100).tolist()
+        fig = plt.figure(figsize=(7, 4))
+        plt.plot(argument, data["deepc25"], label='DeepC, N=25', color='tab:blue', linestyle='--')
+        plt.plot(argument, data["deepcf25"], label='DeepCF, N=25', color='tab:orange', linestyle='--')
+        plt.plot(argument, data["deepc19"], label='DeepC, N=19', color='tab:blue')
+        plt.plot(argument, data["deepcf19"], label='DeepCF, N=19', color='tab:orange')
+        plt.fill_between(argument, 
+                         np.array(data["deepc19"]) - np.array(data["deepc_var"]), 
+                         np.array(data["deepc19"]) + np.array(data["deepc_var"]), 
+                         alpha=0.2, color='tab:blue')
+        plt.fill_between(argument, 
+                         np.array(data["deepcf19"]) - np.array(data["deepcf_var"]), 
+                         np.array(data["deepcf19"]) + np.array(data["deepcf_var"]), 
+                         alpha=0.2, color='tab:orange')
+        plt.xlabel('Total time to complete the whole lap, s')
+        plt.ylabel('Residual sum of squares (RSS) per step, m')
+        plt.yscale('symlog', linthresh=1)
+        plt.xlim([35, 41.5])
+        plt.ylim([0.3, 5])
+        #plt.xticks(range(5, 25, 5))
+        plt.grid()
+        plt.legend()
+        plt.tight_layout(rect=[0, 0, 1, 0.98])
+        plt.title('Eight-shape trajectory tracking')
+        plt.savefig(f'img/Circle-time-parallel.pdf')
+        
+        
 # Check if the script is being run as the main module
 if __name__ == "__main__":
     #plot_lambda_y()
@@ -450,6 +588,8 @@ if __name__ == "__main__":
     #dataset_variation_high()
     #plot_lambda_g(N=25)
     #animation_of_deepcf()
-    parallel_dataset_variaion(5)
+    #parallel_dataset_variaion(100)
+    plot_lambda_g_parallel(50)
+    #Lissague_tracking_parallel(30)
     exit()
     
