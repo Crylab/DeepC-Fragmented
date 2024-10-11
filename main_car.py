@@ -31,6 +31,8 @@ def run_experiment(dict_in: dict):
         obj = deepcf.DEEPCF_Tracking(dict_in)
     elif dict_in["algorithm"] == "deepc":
         obj = deepc_tracking.DEEPC_Tracking(dict_in)
+    elif dict_in["algorithm"] == "deepcs":
+        obj = deepcf.DEEPCS_Tracking(dict_in)
     obj.trajectory_tracking()
     rss = float(obj.rss)
     return rss
@@ -580,6 +582,89 @@ def Lissague_tracking_parallel(n_seeds = 30):
         plt.title('Eight-shape trajectory tracking')
         plt.savefig(f'img/Circle-time-parallel.pdf')
         
+def Fragment_or_Segment(n_seeds = 30):
+    """
+    Plot the effect of Circle time on the tracking deviation.
+    """
+    execution_list = []
+    for alg in ["deepc", "deepcf", "deepcs"]:
+        for N in [19, 25, 50]:
+            for seed in range(n_seeds):            
+                parameters = {
+                    "algorithm": alg,
+                    "prediction_horizon": 8,
+                    "Q": [1, 1, 1, 100],
+                    "R": [0.1] * 2,
+                    "N": N,
+                    "lambda_g": 0.0012*float(N) if alg == "deepcf" else 0.1,
+                    "lambda_y": [50000] * 4,
+                    "Lissajous_circle_time": 3700,
+                    "seed": seed,
+                }
+                execution_list.append(parameters)
+    
+    if True:
+        pool = multiprocessing.Pool(processes=90)
+        results = pool.map(try_run_experiment, execution_list)
+    else:
+        results = []
+        for each in execution_list:
+            results.append(try_run_experiment(each))
+        
+    data = {
+        "deepc": [],
+        "deepcf": [],
+        "deepcs": [],
+        "deepc_var": [],
+        "deepcf_var": [],
+        "deepcs_var": [],
+    }
+    for alg in ["deepc", "deepcf", "deepcs"]:
+        for N in [19, 25, 50]:
+            seed_list = []
+            for seed in range(n_seeds):
+                seed_list.append(results.pop(0))
+            data[alg].append(np.nanmean(seed_list))
+            data[alg + "_var"].append(np.nanvar(seed_list))
+    
+    if True:
+        # Labels
+        algorithms = ['DeepC', 'DeepCF', 'DeepCS']
+        datasets = ['N=19', 'N=25', 'N=50']
+
+        # Set the position of bars on the x-axis
+        bar_width = 0.25
+        index = np.arange(len(datasets))
+
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(8, 6))
+
+        # Plot bars with error bars for each algorithm
+        ax.bar(index, data['deepc'], yerr=data['deepc_var'], width=bar_width, label='DeepC', capsize=5)
+        ax.bar(index + bar_width, data['deepcf'], yerr=data['deepcf_var'], width=bar_width, label='Fragmented DeepC', capsize=5)
+        ax.bar(index + 2 * bar_width, data['deepcs'], yerr=data['deepcs_var'], width=bar_width, label='Segmented DeepC', capsize=5)
+
+        # Add labels and title
+        ax.set_xlabel('Dataset size', )
+        ax.set_ylabel('RSS per point, m', )
+        ax.set_title('Comparing of slacking variable application')
+
+        # Set x-ticks and labels
+        ax.set_xticks(index + bar_width)
+        ax.set_xticklabels(datasets)
+
+        # Add legend
+        ax.legend()
+
+        # Display the plot
+        plt.tight_layout()
+        plt.savefig(f'img/Baarchart.pdf')
+        
+        
+        print("DeePC: ", data["deepc"])
+        print("DeePCF: ", data["deepcf"])
+        print("DeePCS: ", data["deepcs"])
+        
         
 # Check if the script is being run as the main module
 if __name__ == "__main__":
@@ -589,7 +674,11 @@ if __name__ == "__main__":
     #plot_lambda_g(N=25)
     #animation_of_deepcf()
     #parallel_dataset_variaion(100)
-    plot_lambda_g_parallel(50)
+    #plot_lambda_g_parallel(50)
     #Lissague_tracking_parallel(30)
-    exit()
+    #exit()
+    
+    Fragment_or_Segment()
+    
+    
     
