@@ -177,8 +177,8 @@ def experiment_pendulum_transit(params):
     rss = obj.rss
     return rss
     
-# Check if the script is being run as the main module
-if __name__ == "__main__":    
+def old_main():
+       
     params = {
         "lambda_g": 10.0,
         "lambda_y": [1e2],
@@ -264,4 +264,7 @@ if __name__ == "__main__":
     
     
     exit()
-    
+
+# Check if the script is being run as the main module
+if __name__ == "__main__": 
+    print("Main")

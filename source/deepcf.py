@@ -1,15 +1,15 @@
 import sys
 
 # Add the path to the sys.path
-sys.path.append("DeepC/source")
+sys.path.append("DeePC/source")
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import sparse
 from scipy.linalg import block_diag
 import osqp
-import DeepC.source.deepc as deepc
-import DeepC.source.deepc_tracking as deepc_tracking
+import DeePC.source.deepc as deepc
+import DeePC.source.deepc_tracking as deepc_tracking
 
 
 class DEEPCF_Tracking(deepc_tracking.DEEPC_Tracking):
