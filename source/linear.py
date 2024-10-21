@@ -24,30 +24,70 @@ class LinearSystem:
         self.set_default_parameters(parameters, "damping_two", 1.0)
         self.set_default_parameters(parameters, "dt", 1.0) # s
         self.set_default_parameters(parameters, "max_input", 1.0)
+        self.set_default_parameters(parameters, "sinusoid_amplitude", 0.2)
+        self.set_default_parameters(parameters, "sinusoid_bias", 0.2)
+        self.set_default_parameters(parameters, "sinusoid_freq", 0.01)
+        self.set_default_parameters(parameters, "uniform_amplitude", 0.15)
+        self.set_default_parameters(parameters, "measurement_std_dev", 0.1)
+        self.set_default_parameters(parameters, "seed", 1)
         
-        self.dt = self.parameters["dt"]
-        
-        self.x = 0.0
-        self.x_d = 0.0
+        self.dt = self.parameters["dt"]        
+        self.time = 0.0
+        self.x = np.zeros(4)
+        np.random.seed(self.parameters["seed"])
         
     def Step(self, input: float) -> float:
+        # Input saturation
         if input > self.parameters["max_input"]:
             input = self.parameters["max_input"]
         elif input < -self.parameters["max_input"]:
             input = -self.parameters["max_input"]
         
-        term1 = (input-self.parameters["damping"]*self.x_d)/self.parameters["mass"]
-        term2 = self.parameters["gravity"]*np.sin(self.x)/self.parameters["length"]
-        x_d_p = self.x_d + (term1-term2)*self.dt
-        x_p = self.x + self.x_d*self.dt
-         
-        self.x = x_p
-        self.x_d = x_d_p
-        return self.x
+        # Noise generation
+        measurement_noise = np.random.normal(0.0, self.parameters["measurement_std_dev"])
+
+        sinusoidal_noise = np.sin(2*np.pi*self.parameters["sinusoid_freq"]*self.time) * self.parameters["sinusoid_amplitude"] + self.parameters["sinusoid_bias"]
+
+        uniform_noise = 2 * self.parameters["uniform_amplitude"] * np.random.random() - self.parameters["uniform_amplitude"]
+
+        # System dynamics
+
+        k1 = self.parameters["spring_one"]
+        k2 = self.parameters["spring_two"]
+        c1 = self.parameters["damping_one"]
+        c2 = self.parameters["damping_two"]
+        m1 = self.parameters["mass_one"]
+        m2 = self.parameters["mass_two"]
+
+        ### State-space representation
+        # x = [x1, x2, x1_dot, x2_dot]
+        # x_dot = Ax + Bu
+        # y = Cx + Du
+        ### State-space matrices
+        
+        internal_dt = 0.01
+
+        A = np.array([
+                [0.0, 0.0, 1.0, 0.0], 
+                [0.0, 0.0, 0.0, 1.0], 
+                [-(k1+k2)/m1, k2/m1, -(c1+c2)/m1, c2/m1],
+                [k2/m2, -k2/m2, c2/m2, -c2/m2],
+            ])
+        
+        B = np.array([0.0, 0.0, 1.0/m1, 0.0])
+        
+        for _ in range(int(self.dt/internal_dt)):
+            x_dot = np.dot(A, self.x) + np.dot(B, input+sinusoidal_noise+uniform_noise)
+            self.x += x_dot * internal_dt
+            self.time += internal_dt
+            
+        y = self.x[1] + measurement_noise 
+
+        return y
     
-    def Initialization(self, x: float = 0.0, x_d: float = 0.0) -> None:
-        self.x = x
-        self.x_d = x_d
+    def Initialization(self) -> None:
+        self.x = np.zeros(4)
+        self.time = 0.0
     
 class Linear_tracking:
     def set_default_parameters(self, dict_in: dict, name: str, value) -> None:
@@ -61,14 +101,14 @@ class Linear_tracking:
         self.parameters = {}
         
         self.set_default_parameters(parameters, "N", 20)
-        self.set_default_parameters(parameters, "R", [0.001])
+        self.set_default_parameters(parameters, "R", [1.0])
         self.set_default_parameters(parameters, "Q", [1.0])
-        self.set_default_parameters(parameters, "lambda_y", [100])
+        self.set_default_parameters(parameters, "lambda_y", [1])
         self.set_default_parameters(parameters, "lambda_g", 1.0)
-        self.set_default_parameters(parameters, 'initial_horizon', 1)
-        self.set_default_parameters(parameters, 'prediction_horizon', 4)
-        self.set_default_parameters(parameters, 'dt', 0.05)
-        self.set_default_parameters(parameters, 'algorithm', "deepc")
+        self.set_default_parameters(parameters, 'initial_horizon', 5)
+        self.set_default_parameters(parameters, 'prediction_horizon', 10)
+        self.set_default_parameters(parameters, 'dt', 1.0)
+        self.set_default_parameters(parameters, 'algorithm', "deepcf")
         self.set_default_parameters(parameters, 'seed', 1)
         self.set_default_parameters(parameters, 'tracking_time', 100)
         
@@ -85,7 +125,7 @@ class Linear_tracking:
         self.parameters["n_inputs"] = 1
         self.parameters["n_outputs"] = 1
             
-        self.model = Pendulum(parameters)
+        self.model = LinearSystem(self.parameters)
         self.parameters.update(self.model.parameters)
         
         
