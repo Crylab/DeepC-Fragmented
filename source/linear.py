@@ -1,6 +1,7 @@
 import numpy as np
 import source.deepcf as deepcf
 import DeePC.source.deepc as deepc
+import source.deepce as deepce
 from termcolor import colored
 import time
 import DeePC.source.track as track
@@ -30,6 +31,7 @@ class LinearSystem:
         self.set_default_parameters(parameters, "uniform_amplitude", 0.15)
         self.set_default_parameters(parameters, "measurement_std_dev", 0.1)
         self.set_default_parameters(parameters, "seed", 1)
+        self.set_default_parameters(parameters, "noise", True)
         
         self.dt = self.parameters["dt"]        
         self.time = 0.0
@@ -44,11 +46,16 @@ class LinearSystem:
             input = -self.parameters["max_input"]
         
         # Noise generation
-        measurement_noise = 0.0#np.random.normal(0.0, self.parameters["measurement_std_dev"])
+        measurement_noise = 0.0 #np.random.normal(0.0, self.parameters["measurement_std_dev"])
 
         sinusoidal_noise = np.sin(2*np.pi*self.parameters["sinusoid_freq"]*self.time) * self.parameters["sinusoid_amplitude"] + self.parameters["sinusoid_bias"]
 
         uniform_noise = 2 * self.parameters["uniform_amplitude"] * np.random.random() - self.parameters["uniform_amplitude"]
+
+        if not self.parameters["noise"]:
+            measurement_noise = 0.0
+            sinusoidal_noise = 0.0
+            uniform_noise = 0.0
 
         # System dynamics
 
@@ -77,7 +84,7 @@ class LinearSystem:
         B = np.array([0.0, 0.0, 1.0/m1, 0.0])
         
         for _ in range(int(self.dt/internal_dt)):
-            x_dot = np.dot(A, self.x) + np.dot(B, input+sinusoidal_noise+uniform_noise)
+            x_dot = np.matmul(A, self.x) + np.dot(B, input+sinusoidal_noise+uniform_noise)
             self.x += x_dot * internal_dt
             self.time += internal_dt
             
@@ -85,8 +92,8 @@ class LinearSystem:
 
         return y
     
-    def Initialization(self) -> None:
-        self.x = np.zeros(4)
+    def Initialization(self, x=np.zeros(4)) -> None:
+        self.x = x
         self.time = 0.0
     
 class Linear_tracking:
@@ -128,7 +135,7 @@ class Linear_tracking:
         self.parameters["n_inputs"] = 1
         self.parameters["n_outputs"] = 1
             
-        self.model = LinearSystem(self.parameters)
+        self.model = LinearSystem(parameters)
         self.parameters.update(self.model.parameters)
         
         
@@ -136,6 +143,8 @@ class Linear_tracking:
             self.solver = deepcf.DeepC_Fragment(self.parameters)
         elif self.parameters['algorithm'] == "deepc":
             self.solver = deepc.DeepC(self.parameters)
+        elif self.parameters['algorithm'] == "deepce":
+            self.solver = deepce.DeepCe(self.parameters)
         else:
             raise ValueError("Invalid algorithm")
         
@@ -152,7 +161,7 @@ class Linear_tracking:
         tau = []
         out = []
         for i in range(30):
-            val = 4 * max_input * np.random.random() - (2 * max_input)
+            val = 2 * max_input * np.random.random() - max_input
             for _ in range(10):
                 tau.append(val)
         
@@ -227,7 +236,7 @@ class Linear_tracking:
         self.dataset_generation()
         self.solver.dataset_reformulation(self.solver.dataset)
                 
-        self.model.Initialization()    
+        self.model.Initialization(np.array([0.0, self.trajectory[0], 0.0, 0.0]))    
                 
         result = []
         
