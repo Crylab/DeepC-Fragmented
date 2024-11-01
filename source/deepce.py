@@ -110,31 +110,7 @@ class DeepCe(deepcf.DeepC_Fragment):
         plt.tight_layout(rect=[0, 0.0, 1, 1])
         plt.savefig("img/matrix.pdf")
 
-    def solve_raw(self):
-        """
-        Solve the optimization problem and provide raw OSQP output.
-
-        Inputs:
-        - None
-
-        Outputs:
-        - results: The results from the OSQP solver.
-
-        Raises:
-        - Exception: If any required data or criteria is missing.
-        """
-        if not self.dataset_formulated:
-            raise Exception(
-                "Attempt to solve the problem without formulated dataset"
-            )
-        if not self.init_cond_exists:
-            raise Exception(
-                "Attempt to solve the problem without initial conditions"
-            )
-        if not self.reference_exists:
-            raise Exception("Attempt to solve the problem without reference")
-        if not self.criteria_exists:
-            raise Exception("Attempt to solve the problem without criteria")
+    def __bilevel_optimization(self):
 
         # C1 Matrix
 
@@ -162,17 +138,19 @@ class DeepCe(deepcf.DeepC_Fragment):
                     lower = np.concatenate((lower, temp2))
 
         # Epsilon must be positive
-        # but less then 
-        upper = np.concatenate((upper, np.array([np.inf] * self.finish_length)))
-        lower = np.concatenate((lower, np.zeros(self.finish_length)))
+        # but less then
+        J_star = 0.0
+        upper = np.concatenate((upper, np.array([np.inf] * self.total_length)))
+        lower = np.concatenate((lower, np.zeros(self.total_length)))
+        upper = np.concatenate((upper, np.array([np.inf])))
+        lower = np.concatenate((lower, np.array([0.0])))
 
         # D1 Matrix
         com = self.N + (self.n_outputs * self.finish_length) + (self.n_inputs * self.init_length)
-        D0 = np.diag([self.criteria["lambda_g"]] * self.N + np.zeros(com-self.N).tolist())
-        #D0 = np.diag([self.criteria["lambda_g"]] * com)
+        D0 = np.zeros((com, com))
         
         # E0 Matrix
-        E0 =  np.concatenate((np.zeros(self.N), np.ones(self.n_outputs * self.init_length), np.ones(self.n_outputs * self.finish_length))) # Hardcoded SISO
+        E0 =  np.concatenate((np.zeros(self.N), np.ones(self.n_outputs * self.init_length), np.zeros(self.n_outputs * self.finish_length))) # Hardcoded SISO
 
         # B1 Matrix
         B41 = np.concatenate((np.zeros((self.total_length, self.total_length)), np.eye(self.total_length)))
@@ -180,8 +158,97 @@ class DeepCe(deepcf.DeepC_Fragment):
         B4 = np.concatenate((B41, B42))
 
         B11 = np.concatenate((np.concatenate((self.H.T, self.H.T)), B4), axis=1)
-        B12 = np.concatenate((np.zeros((self.finish_length, self.N+self.init_length)), np.eye(self.finish_length)), axis=1)
-        B1 = np.concatenate((B11, B12), axis=0)
+        B12 = np.concatenate((np.zeros((self.total_length, self.N)), np.eye(self.total_length)), axis=1)
+        B13 = np.concatenate((np.zeros((1, self.N)), np.ones((1, self.init_length)), np.zeros((1, self.finish_length))), axis=1)
+        B1 = np.concatenate((B11, B12, B13), axis=0)
+
+        #self.show_matrix(B1)
+        self.solver = osqp.OSQP()
+        D0_sparse = sparse.csc_matrix(D0)
+        B1_sparse = sparse.csc_matrix(B1)
+        self.solver.setup(D0_sparse, E0, B1_sparse, lower, upper, verbose=False)
+        results = self.solver.solve()
+        if results.info.status_val != 1:
+            return 0.01
+        J = results.info.obj_val
+        return J if J > 0 else 0.0
+
+    def solve_raw(self):
+        """
+        Solve the optimization problem and provide raw OSQP output.
+
+        Inputs:
+        - None
+
+        Outputs:
+        - results: The results from the OSQP solver.
+
+        Raises:
+        - Exception: If any required data or criteria is missing.
+        """
+        if not self.dataset_formulated:
+            raise Exception(
+                "Attempt to solve the problem without formulated dataset"
+            )
+        if not self.init_cond_exists:
+            raise Exception(
+                "Attempt to solve the problem without initial conditions"
+            )
+        if not self.reference_exists:
+            raise Exception("Attempt to solve the problem without reference")
+        if not self.criteria_exists:
+            raise Exception("Attempt to solve the problem without criteria")
+
+        # Compute linear bilevel optimization
+        J_star = self.__bilevel_optimization()
+
+        # Upper and lower bound matrix
+        max_input = [1] # Hardcoded SISO
+        min_input = [-1] # Hardcoded SISO
+        upper = np.array([])
+        lower = np.array([])
+        for positive in range(2):
+            for i in range(0, self.n_inputs):
+                temp1 = np.concatenate((self.input_init[i], max_input[i] * np.ones(self.finish_length)))
+                upper = np.concatenate((upper, temp1))
+                temp2 = np.concatenate((self.input_init[i], min_input[i] * np.ones(self.finish_length)))
+                lower = np.concatenate((lower, temp2))
+            for i in range(0, self.n_outputs):
+                if positive == 0:
+                    temp1 = np.array([np.inf] * self.total_length)
+                    upper = np.concatenate((upper, temp1))
+                    temp2 = np.concatenate((self.output_init[i], self.reference[i]))
+                    lower = np.concatenate((lower, temp2))
+                else:
+                    temp1 = np.concatenate((self.output_init[i], self.reference[i]))
+                    upper = np.concatenate((upper, temp1))
+                    temp2 = np.array([-np.inf] * self.total_length)
+                    lower = np.concatenate((lower, temp2))
+
+        # Epsilon must be positive
+        # but less then
+        upper = np.concatenate((upper, np.array([np.inf] * self.total_length)))
+        lower = np.concatenate((lower, np.zeros(self.total_length)))
+        upper = np.concatenate((upper, np.array([J_star])))
+        lower = np.concatenate((lower, np.array([0.0])))
+
+        # D1 Matrix
+        com = self.N + (self.n_outputs * self.finish_length) + (self.n_inputs * self.init_length)
+        D0 = np.diag([self.criteria["lambda_g"]] * self.N + np.zeros(com-self.N).tolist())
+        #D0 = np.diag([self.criteria["lambda_g"]] * com)
+        
+        # E0 Matrix
+        E0 =  np.concatenate((np.zeros(self.N), np.zeros(self.n_outputs * self.init_length), np.ones(self.n_outputs * self.finish_length))) # Hardcoded SISO
+
+        # B1 Matrix
+        B41 = np.concatenate((np.zeros((self.total_length, self.total_length)), np.eye(self.total_length)))
+        B42 = np.concatenate((np.zeros((self.total_length, self.total_length)), -np.eye(self.total_length)))
+        B4 = np.concatenate((B41, B42))
+
+        B11 = np.concatenate((np.concatenate((self.H.T, self.H.T)), B4), axis=1)
+        B12 = np.concatenate((np.zeros((self.total_length, self.N)), np.eye(self.total_length)), axis=1)
+        B13 = np.concatenate((np.zeros((1, self.N)), np.ones((1, self.init_length)), np.zeros((1, self.finish_length))), axis=1)
+        B1 = np.concatenate((B11, B12, B13), axis=0)
 
         #self.show_matrix(B1)
         self.solver = osqp.OSQP()

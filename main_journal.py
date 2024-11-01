@@ -27,7 +27,7 @@ if __name__ == "__main__":
     # Plot the chart
     error_list = []
     fig, ax = plt.subplots(1, 2, figsize=(10, 5), width_ratios=[3, 1])
-    for seed in range(0, 2):
+    for seed in range(0, 10):
         # Define the parameters for the experiment
         params = {
             "Q": [1.0],
@@ -37,7 +37,7 @@ if __name__ == "__main__":
             "algorithm": "deepce",
             "prediction_horizon": 10,
             "seed": seed,
-            "noise": False,
+            "noise": True,
         }
         obj = Linear_tracking(params)
         result = obj.trajectory_tracking()

@@ -46,7 +46,7 @@ class LinearSystem:
             input = -self.parameters["max_input"]
         
         # Noise generation
-        measurement_noise = 0.0 #np.random.normal(0.0, self.parameters["measurement_std_dev"])
+        measurement_noise = np.random.normal(0.0, self.parameters["measurement_std_dev"])
 
         sinusoidal_noise = np.sin(2*np.pi*self.parameters["sinusoid_freq"]*self.time) * self.parameters["sinusoid_amplitude"] + self.parameters["sinusoid_bias"]
 
@@ -161,7 +161,8 @@ class Linear_tracking:
         tau = []
         out = []
         for i in range(30):
-            val = 2 * max_input * np.random.random() - max_input
+            val = 4 * max_input * np.random.random() - 2*max_input
+            val = np.clip(val, -1, 1)
             for _ in range(10):
                 tau.append(val)
         
@@ -229,14 +230,14 @@ class Linear_tracking:
         # Check if simulation already exists
         self.past_states = self.trajectory[:self.INITIAL_HORIZON].copy().tolist()
         for _ in range(self.INITIAL_HORIZON):
-            self.past_actions.append(0.0)
+            self.past_actions.append(0.8)
             
         self.reference_states = self.trajectory[self.INITIAL_HORIZON:self.INITIAL_HORIZON + self.PREDICTION_HORIZON].copy().tolist()
         
         self.dataset_generation()
         self.solver.dataset_reformulation(self.solver.dataset)
                 
-        self.model.Initialization(np.array([0.0, self.trajectory[0], 0.0, 0.0]))    
+        self.model.Initialization(np.array([self.trajectory[0], self.trajectory[0], 0.0, 0.0]))    
                 
         result = []
         
