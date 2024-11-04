@@ -5,6 +5,7 @@ import source.deepce as deepce
 from termcolor import colored
 import time
 import DeePC.source.track as track
+import source.deepcfe as deepcfe
 
 class LinearSystem:
     def set_default_parameters(self, dict_in: dict, name: str, value) -> None:
@@ -46,7 +47,7 @@ class LinearSystem:
             input = -self.parameters["max_input"]
         
         # Noise generation
-        measurement_noise = np.random.normal(0.0, self.parameters["measurement_std_dev"])
+        measurement_noise = 0.0 #np.random.normal(0.0, self.parameters["measurement_std_dev"])
 
         sinusoidal_noise = np.sin(2*np.pi*self.parameters["sinusoid_freq"]*self.time) * self.parameters["sinusoid_amplitude"] + self.parameters["sinusoid_bias"]
 
@@ -118,9 +119,7 @@ class Linear_tracking:
         self.set_default_parameters(parameters, 'algorithm', "deepcf")
         self.set_default_parameters(parameters, 'seed', 1)
         self.set_default_parameters(parameters, 'tracking_time', 100)
-
-        dataset_size = 300 - self.parameters['initial_horizon'] - self.parameters['prediction_horizon']
-        self.parameters['N'] = dataset_size
+        self.set_default_parameters(parameters, 'N', 300)
         
         # Horizon parameters
         self.INITIAL_HORIZON = self.parameters['initial_horizon']
@@ -145,6 +144,8 @@ class Linear_tracking:
             self.solver = deepc.DeepC(self.parameters)
         elif self.parameters['algorithm'] == "deepce":
             self.solver = deepce.DeepCe(self.parameters)
+        elif self.parameters['algorithm'] == "deepcfe":
+            self.solver = deepcfe.DeepCeF(self.parameters)
         else:
             raise ValueError("Invalid algorithm")
         
@@ -158,19 +159,21 @@ class Linear_tracking:
         dataset_outputs = []
         self.model.Initialization()
         max_input = self.parameters["max_input"]
+        total_length = self.parameters["initial_horizon"] + self.parameters["prediction_horizon"]
         tau = []
         out = []
-        for i in range(30):
+        stable = 10
+        for i in range(int((self.parameters["N"]+total_length))):
             val = 4 * max_input * np.random.random() - 2*max_input
             val = np.clip(val, -1, 1)
-            for _ in range(10):
+            for _ in range(stable):
                 tau.append(val)
         
-        for i in range(300):
+
+        for i in range(self.parameters["N"]+total_length):
             out.append(self.model.Step(tau[i]))
 
-        total_length = self.parameters["initial_horizon"] + self.parameters["prediction_horizon"]
-        for i in range(300-total_length):
+        for i in range(self.parameters["N"]):
             dataset_inputs.append([tau[i:i+total_length]])
             dataset_outputs.append([out[i:i+total_length]])
         self.solver.set_data(dataset_inputs, dataset_outputs)

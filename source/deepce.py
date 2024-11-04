@@ -201,7 +201,7 @@ class DeepCe(deepcf.DeepC_Fragment):
 
         # Compute linear bilevel optimization
         J_star = self.__bilevel_optimization()
-
+        
         # Upper and lower bound matrix
         max_input = [1] # Hardcoded SISO
         min_input = [-1] # Hardcoded SISO
