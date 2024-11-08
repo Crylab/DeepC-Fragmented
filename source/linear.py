@@ -6,6 +6,7 @@ from termcolor import colored
 import time
 import DeePC.source.track as track
 import source.deepcfe as deepcfe
+import source.deepcfg as deepcfg
 
 class LinearSystem:
     def set_default_parameters(self, dict_in: dict, name: str, value) -> None:
@@ -49,9 +50,9 @@ class LinearSystem:
         # Noise generation
         measurement_noise = 0.0 #np.random.normal(0.0, self.parameters["measurement_std_dev"])
 
-        sinusoidal_noise = np.sin(2*np.pi*self.parameters["sinusoid_freq"]*self.time) * self.parameters["sinusoid_amplitude"] + self.parameters["sinusoid_bias"]
+        sinusoidal_noise = (1+np.sin(2*np.pi*self.parameters["sinusoid_freq"]*self.time)) * self.parameters["sinusoid_amplitude"]
 
-        uniform_noise = 2 * self.parameters["uniform_amplitude"] * np.random.random() - self.parameters["uniform_amplitude"]
+        uniform_noise = 2 * self.parameters["uniform_amplitude"] * (np.random.random() - 0.5)
 
         if not self.parameters["noise"]:
             measurement_noise = 0.0
@@ -120,6 +121,7 @@ class Linear_tracking:
         self.set_default_parameters(parameters, 'seed', 1)
         self.set_default_parameters(parameters, 'tracking_time', 100)
         self.set_default_parameters(parameters, 'N', 300)
+        self.set_default_parameters(parameters, 'control_horizon', 1)
         
         # Horizon parameters
         self.INITIAL_HORIZON = self.parameters['initial_horizon']
@@ -146,6 +148,12 @@ class Linear_tracking:
             self.solver = deepce.DeepCe(self.parameters)
         elif self.parameters['algorithm'] == "deepcfe":
             self.solver = deepcfe.DeepCeF(self.parameters)
+        elif self.parameters['algorithm'] == "deepcgf":
+            n_sub = int(self.parameters["prediction_horizon"] / self.parameters["control_horizon"])
+            self.PREDICTION_HORIZON = n_sub * self.parameters["control_horizon"]
+            self.parameters["prediction_horizon"] = self.PREDICTION_HORIZON
+            self.solver = deepcfg.DeepCgF(self.parameters)
+
         else:
             raise ValueError("Invalid algorithm")
         

@@ -12,14 +12,19 @@ import DeePC.source.deepc as deepc
 import DeePC.source.deepc_tracking as deepc_tracking
 import source.deepcf as deepcf
 
-class DeepCeFTracking(deepc_tracking.DEEPC_Tracking):
+class DeepCgFTracking(deepc_tracking.DEEPC_Tracking):
     def __init__(self, params):
         super().__init__(params)
-        self.algorithm = "deepcef"
-        self.deepc = DeepCeF(self.parameters)
+        self.algorithm = "deepcgf"
+        self.set_default_parameters(params, "control_horizon", 2)
+        self.deepc = DeepCgF(self.parameters)
         self.deepc.set_opt_criteria(self.parameters.copy())
 
-class DeepCeF(deepcf.DeepC_Fragment):
+class DeepCgF(deepcf.DeepC_Fragment):
+    def __init__(self, params):
+        super().__init__(params)
+        self.control_horizon = params["control_horizon"]
+
     def dataset_reformulation(self, dataset_in):
         """
         Reformulate the dataset for optimization.
@@ -38,9 +43,9 @@ class DeepCeF(deepcf.DeepC_Fragment):
         self.H = (
             [
                 [0.0]
-                * ((self.init_length + 1) * self.channels)
+                * ((self.init_length + self.control_horizon) * self.channels)
             ]
-            * (self.N + self.finish_length - 1)
+            * (self.N)
         )
         for i in range(0, self.N):
             chunk = np.array([])
@@ -48,23 +53,12 @@ class DeepCeF(deepcf.DeepC_Fragment):
                 chunk = np.hstack(
                     (
                         chunk,
-                        dataset_in[i][j][0 : self.init_length + 1],
+                        dataset_in[i][j][0 : self.init_length + self.control_horizon],
                     )
                 )
             self.H[i] = chunk
-        for i in range(1, self.finish_length):
-            chunk = np.array([])
-            for j in range(0, self.channels):
-                chunk = np.hstack(
-                    (
-                        chunk,
-                        dataset_in[self.N-1][j][i : self.init_length + i + 1],
-                    )
-                )
-            self.H[self.N + i - 1] = chunk
-        # Here dataset_in can be decomposed on additional (self.finith_length-1) elements
+        
         self.H = np.array(self.H)
-        self.N = self.N + self.finish_length - 1
         self.dataset_formulated = True
 
     def magic_matrix(self, offset: int) -> np.ndarray:
@@ -132,29 +126,30 @@ class DeepCeF(deepcf.DeepC_Fragment):
         upper = np.array([])
         lower = np.array([])
 
-        # Positive part
-        for i in range(self.finish_length):
-            term1 = np.concatenate((self.input_init[0], max_input[0] * np.ones(self.finish_length)))
-            upper = np.concatenate((upper, term1[i:self.init_length + i + 1]))
-            term2 = np.concatenate((self.input_init[0], min_input[0] * np.ones(self.finish_length)))
-            lower = np.concatenate((lower, term2[i:self.init_length + i + 1]))
+        n_sub = int(self.finish_length / self.control_horizon)
 
+        # Positive part
+        for i in range(n_sub):
+            term1 = np.concatenate((self.input_init[0], max_input[0] * np.ones(self.finish_length)))
+            upper = np.concatenate((upper, term1[i:self.init_length + i + self.control_horizon]))
+            term2 = np.concatenate((self.input_init[0], min_input[0] * np.ones(self.finish_length)))
+            lower = np.concatenate((lower, term2[i:self.init_length + i + self.control_horizon]))
 
             term3 = np.concatenate((self.output_init[0], self.reference[0]))
-            term4 = np.array([np.inf] * (self.init_length + 1))
+            term4 = np.array([np.inf] * (self.init_length + self.control_horizon))
             upper = np.concatenate((upper, term4))
-            lower = np.concatenate((lower, term3[i:self.init_length + i + 1]))
+            lower = np.concatenate((lower, term3[i:self.init_length + i + self.control_horizon]))
 
         # Negative part
-        for i in range(self.finish_length):
+        for i in range(n_sub):
             term1 = np.concatenate((self.input_init[0], max_input[0] * np.ones(self.finish_length)))
-            upper = np.concatenate((upper, term1[i:self.init_length + i + 1]))
+            upper = np.concatenate((upper, term1[i:self.init_length + i + self.control_horizon]))
             term2 = np.concatenate((self.input_init[0], min_input[0] * np.ones(self.finish_length)))
-            lower = np.concatenate((lower, term2[i:self.init_length + i + 1]))
+            lower = np.concatenate((lower, term2[i:self.init_length + i + self.control_horizon]))
 
             term3 = np.concatenate((self.output_init[0], self.reference[0]))
-            term4 = np.array([-np.inf] * (self.init_length + 1))
-            upper = np.concatenate((upper, term3[i:self.init_length + i + 1]))
+            term4 = np.array([-np.inf] * (self.init_length + self.control_horizon))
+            upper = np.concatenate((upper, term3[i:self.init_length + i + self.control_horizon]))
             lower = np.concatenate((lower, term4))
 
         # Epsilon must be positive
@@ -176,50 +171,50 @@ class DeepCeF(deepcf.DeepC_Fragment):
         B41 = np.array([])
 
         # Positive part
-        for i in range(self.finish_length):
-            term1 = np.zeros((self.init_length+1, self.init_length))
+        for i in range(n_sub):
+            term1 = np.zeros((self.init_length+self.control_horizon, self.init_length))
             term2 = np.eye(3*self.finish_length)
-            term3 = np.roll(term2, -i, axis=0)
-            term4 = term3[0:self.init_length+1, 0:self.init_length]
+            term3 = np.roll(term2, -i*self.control_horizon, axis=0)
+            term4 = term3[0:self.init_length+self.control_horizon, 0:self.init_length]
             if B41.size == 0:
                 B41 = np.concatenate((term1, term4))
             else:
                 B41 = np.concatenate((B41, term1, term4))
 
         # Negative part
-        for i in range(self.finish_length):
-            term1 = np.zeros((self.init_length+1, self.init_length))
+        for i in range(n_sub):
+            term1 = np.zeros((self.init_length+self.control_horizon, self.init_length))
             term2 = -np.eye(3*self.finish_length)
-            term3 = np.roll(term2, -i, axis=0)
-            term4 = term3[0:self.init_length+1, 0:self.init_length]
+            term3 = np.roll(term2, -i*self.control_horizon, axis=0)
+            term4 = term3[0:self.init_length+self.control_horizon, 0:self.init_length]
             B41 = np.concatenate((B41, term1, term4))
 
         B42 = np.array([])
 
         # Positive part
-        for i in range(self.finish_length):
-            term1 = np.zeros((self.init_length+1, self.finish_length))
+        for i in range(n_sub):
+            term1 = np.zeros((self.init_length+self.control_horizon, self.finish_length))
             term2 = np.eye(3*self.finish_length)
-            term3 = np.roll(term2, self.init_length-i, axis=0)
-            term4 = term3[0:self.init_length+1, 0:self.finish_length]
+            term3 = np.roll(term2, self.init_length-i*self.control_horizon, axis=0)
+            term4 = term3[0:self.init_length+self.control_horizon, 0:self.finish_length]
             if B42.size == 0:
                 B42 = np.concatenate((term1, term4))
             else:
                 B42 = np.concatenate((B42, term1, term4))
 
         # Negative part
-        for i in range(self.finish_length):
-            term1 = np.zeros((self.init_length+1, self.finish_length))
+        for i in range(n_sub):
+            term1 = np.zeros((self.init_length+self.control_horizon, self.finish_length))
             term2 = -np.eye(3*self.finish_length)
-            term3 = np.roll(term2, self.init_length-i, axis=0)
-            term4 = term3[0:self.init_length+1, 0:self.finish_length]
+            term3 = np.roll(term2, self.init_length-i*self.control_horizon, axis=0)
+            term4 = term3[0:self.init_length+self.control_horizon, 0:self.finish_length]
             B42 = np.concatenate((B42, term1, term4))
 
-        data_matrix = block_diag(*([self.H.T] * self.finish_length))
+        data_matrix = block_diag(*([self.H.T] * n_sub))
         data_matrix = np.concatenate((data_matrix, data_matrix), axis=0)
         B11 = np.concatenate((data_matrix, B41, B42), axis=1)
-        B12 = np.concatenate((np.zeros((self.total_length, self.N * self.finish_length)), np.eye(self.total_length)), axis=1)
-        B13 = np.concatenate((np.zeros((1, self.N * self.finish_length)), np.ones((1, self.init_length)), np.zeros((1, self.finish_length))), axis=1)
+        B12 = np.concatenate((np.zeros((self.total_length, self.N * n_sub)), np.eye(self.total_length)), axis=1)
+        B13 = np.concatenate((np.zeros((1, self.N * n_sub)), np.ones((1, self.init_length)), np.zeros((1, self.finish_length))), axis=1)
         B1 = np.concatenate((B11, B12, B13), axis=0)
 
         self.solver = osqp.OSQP()
@@ -268,29 +263,31 @@ class DeepCeF(deepcf.DeepC_Fragment):
         upper = np.array([])
         lower = np.array([])
 
+        n_sub = int(self.finish_length / self.control_horizon)
+
         # Positive part
-        for i in range(self.finish_length):
+        for i in range(n_sub):
             term1 = np.concatenate((self.input_init[0], max_input[0] * np.ones(self.finish_length)))
-            upper = np.concatenate((upper, term1[i:self.init_length + i + 1]))
+            upper = np.concatenate((upper, term1[i:self.init_length + i + self.control_horizon]))
             term2 = np.concatenate((self.input_init[0], min_input[0] * np.ones(self.finish_length)))
-            lower = np.concatenate((lower, term2[i:self.init_length + i + 1]))
+            lower = np.concatenate((lower, term2[i:self.init_length + i + self.control_horizon]))
 
 
             term3 = np.concatenate((self.output_init[0], self.reference[0]))
-            term4 = np.array([np.inf] * (self.init_length + 1))
+            term4 = np.array([np.inf] * (self.init_length + self.control_horizon))
             upper = np.concatenate((upper, term4))
-            lower = np.concatenate((lower, term3[i:self.init_length + i + 1]))
+            lower = np.concatenate((lower, term3[i:self.init_length + i + self.control_horizon]))
 
         # Negative part
-        for i in range(self.finish_length):
+        for i in range(n_sub):
             term1 = np.concatenate((self.input_init[0], max_input[0] * np.ones(self.finish_length)))
-            upper = np.concatenate((upper, term1[i:self.init_length + i + 1]))
+            upper = np.concatenate((upper, term1[i:self.init_length + i + self.control_horizon]))
             term2 = np.concatenate((self.input_init[0], min_input[0] * np.ones(self.finish_length)))
-            lower = np.concatenate((lower, term2[i:self.init_length + i + 1]))
+            lower = np.concatenate((lower, term2[i:self.init_length + i + self.control_horizon]))
 
             term3 = np.concatenate((self.output_init[0], self.reference[0]))
-            term4 = np.array([-np.inf] * (self.init_length + 1))
-            upper = np.concatenate((upper, term3[i:self.init_length + i + 1]))
+            term4 = np.array([-np.inf] * (self.init_length + self.control_horizon))
+            upper = np.concatenate((upper, term3[i:self.init_length + i + self.control_horizon]))
             lower = np.concatenate((lower, term4))
 
         # Epsilon must be positive
@@ -301,68 +298,63 @@ class DeepCeF(deepcf.DeepC_Fragment):
         lower = np.concatenate((lower, np.array([0.0])))
 
         # D1 Matrix
-        com = self.N * self.finish_length + self.total_length
-        D0 = np.diag([self.criteria["lambda_g"]] * self.N * self.finish_length + np.zeros(self.total_length).tolist())
+        D0 = np.diag([self.criteria["lambda_g"]] * self.N * n_sub + np.zeros(self.total_length).tolist())
         #D0 = np.diag([self.criteria["lambda_g"]] * com)
         
         # E0 Matrix
-        E0 =  np.concatenate((np.zeros(self.N * self.finish_length), np.ones(self.init_length), np.ones(self.finish_length))) # Hardcoded SISO
+        E0 =  np.concatenate((np.zeros(self.N * n_sub), np.ones(self.init_length), np.ones(self.finish_length))) # Hardcoded SISO
 
         ### B1 Matrix
         B41 = np.array([])
 
         # Positive part
-        for i in range(self.finish_length):
-            term1 = np.zeros((self.init_length+1, self.init_length))
+        for i in range(n_sub):
+            term1 = np.zeros((self.init_length+self.control_horizon, self.init_length))
             term2 = np.eye(3*self.finish_length)
-            term3 = np.roll(term2, -i, axis=0)
-            term4 = term3[0:self.init_length+1, 0:self.init_length]
+            term3 = np.roll(term2, -i*self.control_horizon, axis=0)
+            term4 = term3[0:self.init_length+self.control_horizon, 0:self.init_length]
             if B41.size == 0:
                 B41 = np.concatenate((term1, term4))
             else:
                 B41 = np.concatenate((B41, term1, term4))
 
         # Negative part
-        for i in range(self.finish_length):
-            term1 = np.zeros((self.init_length+1, self.init_length))
+        for i in range(n_sub):
+            term1 = np.zeros((self.init_length+self.control_horizon, self.init_length))
             term2 = -np.eye(3*self.finish_length)
-            term3 = np.roll(term2, -i, axis=0)
-            term4 = term3[0:self.init_length+1, 0:self.init_length]
+            term3 = np.roll(term2, -i*self.control_horizon, axis=0)
+            term4 = term3[0:self.init_length+self.control_horizon, 0:self.init_length]
             B41 = np.concatenate((B41, term1, term4))
 
         B42 = np.array([])
 
         # Positive part
-        for i in range(self.finish_length):
-            term1 = np.zeros((self.init_length+1, self.finish_length))
+        for i in range(n_sub):
+            term1 = np.zeros((self.init_length+self.control_horizon, self.finish_length))
             term2 = np.eye(3*self.finish_length)
-            term3 = np.roll(term2, self.init_length-i, axis=0)
-            term4 = term3[0:self.init_length+1, 0:self.finish_length]
+            term3 = np.roll(term2, self.init_length-i*self.control_horizon, axis=0)
+            term4 = term3[0:self.init_length+self.control_horizon, 0:self.finish_length]
             if B42.size == 0:
                 B42 = np.concatenate((term1, term4))
             else:
                 B42 = np.concatenate((B42, term1, term4))
 
         # Negative part
-        for i in range(self.finish_length):
-            term1 = np.zeros((self.init_length+1, self.finish_length))
+        for i in range(n_sub):
+            term1 = np.zeros((self.init_length+self.control_horizon, self.finish_length))
             term2 = -np.eye(3*self.finish_length)
-            term3 = np.roll(term2, self.init_length-i, axis=0)
-            term4 = term3[0:self.init_length+1, 0:self.finish_length]
+            term3 = np.roll(term2, self.init_length-i*self.control_horizon, axis=0)
+            term4 = term3[0:self.init_length+self.control_horizon, 0:self.finish_length]
             B42 = np.concatenate((B42, term1, term4))
 
-        data_matrix = block_diag(*([self.H.T] * self.finish_length))
+        data_matrix = block_diag(*([self.H.T] * n_sub))
         data_matrix = np.concatenate((data_matrix, data_matrix), axis=0)
 
         B11 = np.concatenate((data_matrix, B41, B42), axis=1)
-        B12 = np.concatenate((np.zeros((self.total_length, self.N * self.finish_length)), np.eye(self.total_length)), axis=1)
-        B13 = np.concatenate((np.zeros((1, self.N * self.finish_length)), np.ones((1, self.init_length)), np.zeros((1, self.finish_length))), axis=1)
+        B12 = np.concatenate((np.zeros((self.total_length, self.N * n_sub)), np.eye(self.total_length)), axis=1)
+        B13 = np.concatenate((np.zeros((1, self.N * n_sub)), np.ones((1, self.init_length)), np.zeros((1, self.finish_length))), axis=1)
         B1 = np.concatenate((B11, B12, B13), axis=0)
         #self.show_matrix(B41)
-
-        self.stepCounter += 1
-        if self.stepCounter == 22:
-            print(f"Step counter: {self.stepCounter}")
 
         self.solver = osqp.OSQP()
         D0_sparse = sparse.csc_matrix(D0)
@@ -393,11 +385,14 @@ class DeepCeF(deepcf.DeepC_Fragment):
         if results is None:
             return None
         
-        data_matrix = block_diag(*([self.H.T] * self.finish_length))
-        raw_result = np.matmul(data_matrix, results.x[0 : self.N * self.finish_length])
+        n_sub = int(self.finish_length / self.control_horizon)
+
+        data_matrix = block_diag(*([self.H.T] * n_sub))
+        raw_result = np.matmul(data_matrix, results.x[0 : self.N * n_sub])
         solution = []
-        for i in range(self.finish_length):
-            solution.append(raw_result[(i) * 2 * (self.init_length + 1) + self.init_length])
+        for i in range(n_sub):
+            for j in range(self.control_horizon):
+                solution.append(raw_result[(i) * 2 * (self.init_length + self.control_horizon) + self.init_length + j])
         return np.array([solution]) # Hardcoded SISO
 
 
