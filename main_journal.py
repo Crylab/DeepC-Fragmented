@@ -19,6 +19,8 @@ import source.deepce as deepce
 from source.pendulum import Pendulum_tracking
 from source.linear import LinearSystem, Linear_tracking
 import json
+from source.nonlinear import DoublePendulum
+from source.nonlinear import Nonlinear_tracking
 
 def hyperparameter_tuning():
     n_seeds = 10
@@ -196,13 +198,64 @@ def varyingN():
     # Save the plot
     plt.savefig("img/linear.pdf")
 
-def 
+def nonlinear_chart():
+    # Example of simulation loop
+    fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+    for i in range(3):
+        parameters = {
+            "k": 0.0,
+            "c": 10.0**((i-2)/1),
+            "m2": 0.5,
+            "l2": 0.5,
+        }
+        pendulum = DoublePendulum(parameters)
+        pendulum.Initialization()
+        
+        for j in range(100):
+            
+            torque = 10 if j < 50 else 0
+            pendulum.Step(torque)
+            
+            #pendulum.visualize()
+        pendulum.post_visualization(ax[2-i])
+        ax[2-i].set_title(f"Damping coefficient = {parameters['c']}")
+    fig.set_tight_layout(True)
+    fig.suptitle("Step Response of Double Pendulum for Varying Damping Coefficients", fontsize=16)
+    fig.savefig("img/double_pendulum.pdf")
+
+def nonlinear_track():
+    parameters = {
+        "k": 0.0,
+        "c": 100,
+        "m2": 0.5,
+        "l2": 0.5,
+        "dt": 0.2,
+        "N": 300,
+        "tracking_time": 100,
+        "algorithm": "deepcgf",
+        "lambda_g": 0.5,
+        "control_horizon": 3,
+        "prediction_horizon": 30,
+    }
+    obj = Nonlinear_tracking(parameters)
+    error = obj.trajectory_tracking()
+
+    fig = plt.figure(figsize=(8, 8))
+    plt.plot(error, label="Fragmented")
+    plt.plot(obj.trajectory.tolist()[5:105], label="Reference", linestyle="--", color="black")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Angle $\theta$, (rad)")
+    plt.title("Fragmented DeePC with nonlinear function: Nonlinear Tracking")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig("img/pendulum_tracking.pdf")
+
 
 # Check if the script is being run as the main module
 if __name__ == "__main__": 
     #varyingN()
     #hyperparameter_tuning()
-    
+    nonlinear_track()
 
 
     print("Hi, I am the main module.")

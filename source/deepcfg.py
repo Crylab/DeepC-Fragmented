@@ -24,6 +24,7 @@ class DeepCgF(deepcf.DeepC_Fragment):
     def __init__(self, params):
         super().__init__(params)
         self.control_horizon = params["control_horizon"]
+        self.max_input = params["max_input"]
 
     def dataset_reformulation(self, dataset_in):
         """
@@ -258,8 +259,8 @@ class DeepCgF(deepcf.DeepC_Fragment):
         #print(f"J_star: {J_star}")
 
         # Upper and lower bound matrix
-        max_input = [1] # Hardcoded SISO
-        min_input = [-1] # Hardcoded SISO
+        max_input = [self.max_input] # Hardcoded SISO
+        min_input = [-self.max_input] # Hardcoded SISO
         upper = np.array([])
         lower = np.array([])
 
@@ -364,7 +365,7 @@ class DeepCgF(deepcf.DeepC_Fragment):
         #print(f"Epsilon f: {results.x[com-self.total_length: com-self.finish_length]}")
         #print(f"Epsilon y: {results.x[com-self.finish_length: com]}")
         
-        if results.info.status_val != 1:
+        if results.info.status_val > 2:
             return None
         return results
 
