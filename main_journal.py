@@ -224,38 +224,149 @@ def nonlinear_chart():
     fig.savefig("img/double_pendulum.pdf")
 
 def nonlinear_track():
-    parameters = {
-        "k": 0.0,
-        "c": 100,
-        "m2": 0.5,
-        "l2": 0.5,
-        "dt": 0.2,
-        "N": 300,
-        "tracking_time": 100,
-        "algorithm": "deepcgf",
-        "lambda_g": 0.5,
-        "control_horizon": 3,
-        "prediction_horizon": 30,
-    }
-    obj = Nonlinear_tracking(parameters)
-    error = obj.trajectory_tracking()
+    fig = plt.figure(figsize=(8, 4))
+    for seed, c in enumerate(np.arange(0.1, 1.0, 0.01)):
+        parameters = {
+            "k": 0.0,
+            "c": c,
+            "m2": 0.5,
+            "l2": 0.5,
+            "dt": 0.2,
+            "N": 300,
+            "tracking_time": 100,
+            "algorithm": "deepcgf",
+            "lambda_g": 0.5,
+            "control_horizon": 3,
+            "prediction_horizon": 10,
+            "seed": seed,
+        }
+        obj = Nonlinear_tracking(parameters)
+        error = obj.trajectory_tracking()
+        plt.plot(error, color=cm.viridis(1.0-c))
 
-    fig = plt.figure(figsize=(8, 8))
-    plt.plot(error, label="Fragmented")
+    
     plt.plot(obj.trajectory.tolist()[5:105], label="Reference", linestyle="--", color="black")
     plt.xlabel("Time (s)")
     plt.ylabel("Angle $\theta$, (rad)")
     plt.title("Fragmented DeePC with nonlinear function: Nonlinear Tracking")
     plt.legend()
+    plt.ylim(-np.pi/2, np.pi/2)
+    plt.xlim(0, 100)
     plt.grid(True)
     plt.savefig("img/pendulum_tracking.pdf")
 
+def nonlinear_track():
+    fig = plt.figure(figsize=(8, 4))
+    for seed, c in enumerate(np.arange(0.1, 1.0, 0.01)):
+        parameters = {
+            "k": 0.0,
+            "c": 1.0,
+            "m2": 0.5,
+            "l2": 0.5,
+            "dt": 0.2,
+            "N": 300,
+            "tracking_time": 100,
+            "algorithm": "deepcgf",
+            "lambda_g": 0.5,
+            "control_horizon": 3,
+            "prediction_horizon": 10,
+            "seed": seed,
+        }
+        obj = Nonlinear_tracking(parameters)
+        error = obj.trajectory_tracking()
+        plt.plot(error, color=cm.viridis(1.0-c))
+
+    
+    plt.plot(obj.trajectory.tolist()[5:105], label="Reference", linestyle="--", color="black")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Angle $\theta$, (rad)")
+    plt.title("Fragmented DeePC with nonlinear function: Nonlinear Tracking")
+    plt.legend()
+    plt.ylim(-np.pi/2, np.pi/2)
+    plt.xlim(0, 100)
+    plt.grid(True)
+    plt.savefig("img/pendulum_tracking.pdf")
+
+def pendulum_hyperparam(ax, parameter = "initial_horizon", parameter_range = range(2, 10)):
+    n_seeds = 20
+    plot_list = []
+    std_list = []
+    for param_value in parameter_range:
+        seed_list = []
+        for seed in range(n_seeds):
+            parameters = {
+                "k": 0.0,
+                "c": 1.0,
+                "m2": 0.5,
+                "l2": 0.5,
+                "dt": 0.2,
+                "N": 300,
+                "tracking_time": 100,
+                "algorithm": "deepcgf",
+                "lambda_g": 10,
+                "control_horizon": 3,
+                "prediction_horizon": 10,
+                "initial_horizon": 5,
+                "seed": seed,
+            }
+            parameters[parameter] = param_value
+            obj = Nonlinear_tracking(parameters)
+            obj.trajectory_tracking()
+            seed_list.append(obj.error)
+        plot_list.append(np.mean(seed_list))
+        std_list.append(np.std(seed_list))
+    ax.plot(parameter_range, plot_list, label="Fragmented")
+    ax.fill_between(parameter_range, np.array(plot_list) - np.array(std_list), np.array(plot_list) + np.array(std_list), alpha=0.1)
+    ax.set_xlabel(f"Parameter {parameter}")
+    ax.set_ylabel("Angle deviation of tracking, (rad)")
+    ax.legend()
+    ax.grid(True)
+
+def pendulum_growing():
+    plt.figure(figsize=(8, 4))
+    for c in np.arange(0.2, 1.0, 0.1):
+        seed_list = []
+        for horizon in range(2, 10):
+            parameters = {
+                "k": 0.0,
+                "c": c,
+                "m2": 0.5,
+                "l2": 0.5,
+                "dt": 0.2,
+                "N": 300,
+                "tracking_time": 100,
+                "algorithm": "deepcgf",
+                "lambda_g": 10,
+                "control_horizon": 3,
+                "prediction_horizon": 10,
+                "initial_horizon": horizon,
+                "seed": 1,
+            }
+            obj = Nonlinear_tracking(parameters)
+            obj.trajectory_tracking()
+            seed_list.append(obj.error)
+        plt.plot(range(2, 10), seed_list, color=cm.viridis(1.0-c))
+    plt.xlabel("Initial horizon")
+    plt.ylabel("Angle deviation of tracking, (rad)")
+    plt.legend()
+    plt.yscale('log')
+    plt.grid(True)
+    plt.savefig("img/pendulum_growing.pdf")
+
+def nonlinear_hyperparams():
+    fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+    pendulum_hyperparam(ax[0], "initial_horizon", range(2, 10))
+    pendulum_hyperparam(ax[1], "lambda_g", [0.5, 1, 5, 10, 15])
+    pendulum_hyperparam(ax[2], "control_horizon", [1, 2, 3, 5, 10])
+    plt.tight_layout()
+    plt.savefig("img/nonlinear_hyperparameter.pdf")
 
 # Check if the script is being run as the main module
 if __name__ == "__main__": 
     #varyingN()
     #hyperparameter_tuning()
-    nonlinear_track()
-
+    #nonlinear_track()
+    #nonlinear_hyperparams()
+    #pendulum_growing()
 
     print("Hi, I am the main module.")
