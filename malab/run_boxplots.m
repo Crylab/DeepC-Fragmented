@@ -184,7 +184,9 @@ for N = Nlist % Run for different prediction horizons
     
             %disp(strcat('N=',num2str(N),' run completed'))    
             runcount = runcount+1;
-            
+            if N == 10
+                trajectories(:, rseed + (segmented * 100)) = yrun(:,2);
+            end
                        
             scenariocount = scenariocount+1;
 
@@ -200,4 +202,4 @@ for N = Nlist % Run for different prediction horizons
     
     
 end
-
+save("linear", "trajectories")
