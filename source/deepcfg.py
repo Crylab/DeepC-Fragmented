@@ -303,7 +303,7 @@ class DeepCgF(deepcf.DeepC_Fragment):
         #D0 = np.diag([self.criteria["lambda_g"]] * com)
         
         # E0 Matrix
-        E0 =  np.concatenate((np.zeros(self.N * n_sub), np.ones(self.init_length), np.ones(self.finish_length))) # Hardcoded SISO
+        E0 =  np.concatenate((np.zeros(self.N * n_sub), np.zeros(self.init_length), np.ones(self.finish_length))) # Hardcoded SISO
 
         ### B1 Matrix
         B41 = np.array([])

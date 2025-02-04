@@ -48,7 +48,7 @@ class LinearSystem:
             input = -self.parameters["max_input"]
         
         # Noise generation
-        measurement_noise = 0.0 #np.random.normal(0.0, self.parameters["measurement_std_dev"])
+        measurement_noise = self.parameters["measurement_std_dev"] * np.random.normal()
 
         sinusoidal_noise = (1+np.sin(2*np.pi*self.parameters["sinusoid_freq"]*self.time)) * self.parameters["sinusoid_amplitude"]
 
