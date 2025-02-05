@@ -120,16 +120,17 @@ def varyingN():
     error_dict = {}
     alg = "deepcgf"
 
+    result_list = []
     for prediction_horizon in prediction_list:
         error_list = []
-        result_list = []
+        
         for seed in range(0, 100):
             # Define the parameters for the experiment
             params = {
                 "Q": [1.0],
                 "R": [0.0],
                 "lambda_g": 7.5,
-                "N": 300,
+                "N": 200,
                 "lambda_y": [0.5],
                 "algorithm": alg,
                 "initial_horizon": 5,
@@ -257,7 +258,7 @@ def varyingN():
         patch = mpatches.Patch(color=color_dict[alg], label=alg, alpha=0.3)
         patch_list.append(patch)
     ax[1].legend(handles=patch_list, loc=2)
-    ax_bar.legend(handles=patch_list, loc=2)
+    ax_bar.legend(handles=patch_list, loc=1)
     ax[0].legend(handles=patch_list, loc=3)
     ax_traj.legend(handles=patch_list, loc=3)
     ax_bar.grid(True)
