@@ -6,7 +6,7 @@ disp('Run each realisation with varying prediction horizon for both segmented an
 % Run for the following prediction horizons:
 N = 10; % Prediction horizons for which to run
 Nlist = [N];
-Slist = 1:100; % Seeds to use for different random component realisations
+Slist = 1:90; % Seeds to use for different random component realisations
 % Sim setup
 simlength_tr = 300; % number of training samples
 simlength_run = 100; % number of run samples
@@ -27,9 +27,12 @@ runlen = simlength_run*dtc; % run length in seconds
 % Build a setpoint to follow:
 spch1 = 25;
 spch2 = 20;
-yspfull = 0.8*[0.5*ones(spch1,1);-0.3*ones(spch2,1);-0.1*ones(spch1,1);...
+yspfull = 0.8*[0.0*ones(5,1);0.5*ones(spch1,1);-0.3*ones(spch2,1);-0.1*ones(spch1,1);...
     -0.5*ones(spch2,1);0.5*ones(spch1,1);-0.1*ones(spch2,1);0.5*ones(spch1,1);...
     -0.5*ones(runlen-spch1*4-spch2*3+max(Nlist)*dtc,1)];
+
+yspfull = yspfull * pi;
+
 sp_band = 0; % Set point band
 
 % Build an input cost
@@ -46,9 +49,7 @@ errSegSens = zeros(length(Slist),length(Nlist));
 timeyUnseg = zeros(length(Slist),length(Nlist));
 timeySeg = zeros(length(Slist),length(Nlist));
 
-
 trgap = 10;
-seedcount = 0;
 %%
 
 for segmented = [0, 1] % First run is unsegmeneted, second run is segmented
@@ -59,6 +60,7 @@ for segmented = [0, 1] % First run is unsegmeneted, second run is segmented
         disp("Run Original with N="+num2str(N))
     end
     for rseed = Slist % Run for different realisations of random components
+        damping = (10+rseed)/100;
         rng(rseed)
         % Build a random set-points for training
         target = reshape(repmat(-pi + (2*pi)*rand(1, 30), 10, 1), [], 1);
@@ -92,7 +94,7 @@ for segmented = [0, 1] % First run is unsegmeneted, second run is segmented
         for i = 1:simlength_tr
             % Call simulation model for 1 timestep
             torque = optimal_pendulum(ytr(end,:), target(i));
-            [t,y_last] = double_pendulum([(i-1)*dtc,i*dtc],ytr(end,:),torque, 1.0);
+            [t,y_last] = double_pendulum([(i-1)*dtc,i*dtc],ytr(end,:),torque, damping);
             ytr(i,:) = y_last(end,:);
             u_tr(i) = torque;
         end
@@ -140,7 +142,7 @@ for segmented = [0, 1] % First run is unsegmeneted, second run is segmented
             Fcasts.cost = cost(k+1:k+Horiz);
 
             % Call simulation model for 1 timestep
-            [t,y_last] = double_pendulum([(k-1)*dtc,k*dtc],yrun(end,:),usp, 1.0);
+            [t,y_last] = double_pendulum([(k-1)*dtc,k*dtc],yrun(end,:),usp, damping);
 
             yrun(k,:) = y_last(end,:);
             trun(k) = t(end);
@@ -169,6 +171,8 @@ for segmented = [0, 1] % First run is unsegmeneted, second run is segmented
         err = abs(yrun(Ctrlparams.Tini+1:end,1)-yspfull(1:runlen/dtc));
         error_list(rseed) = sum(err);
         disp(sum(err));
+
+        trajectories(:, rseed + (segmented * 100)) = yrun(Ctrlparams.Tini+1:end,1);
         
 
         %disp(strcat('N=',num2str(N),' run completed'))    
@@ -183,8 +187,8 @@ for segmented = [0, 1] % First run is unsegmeneted, second run is segmented
     disp("Max val: "+num2str(max(error_list)))
     disp("Min val: "+num2str(min(error_list)))
 end
+save("pendulum", "trajectories")
 
-seedcount = seedcount+1;
         
     
 

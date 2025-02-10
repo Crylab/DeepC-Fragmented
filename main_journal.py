@@ -22,6 +22,9 @@ import json
 from source.nonlinear import DoublePendulum
 from source.nonlinear import Nonlinear_tracking
 import scipy.io
+import pandas as pd
+import seaborn as sns
+import seaborn.objects as so
 
 def hyperparameter_tuning():
     n_seeds = 20
@@ -167,7 +170,7 @@ def varyingN():
     
 
     # Matlab data
-    data = scipy.io.loadmat("linear.mat")
+    data = scipy.io.loadmat("data/linear.mat")
     variable_name = "trajectories"    
     # Extract the trajectories variable
     if variable_name not in data:
@@ -212,7 +215,7 @@ def varyingN():
     ax_traj.set_xlim(0, 100)
 
     # Read from the JSON file
-    with open("matlab_outcomes.json", "r") as file:
+    with open("data/matlab_outcomes.json", "r") as file:
         data = json.load(file)
         data["Fragmented"] = error_dict
 
@@ -299,14 +302,16 @@ def nonlinear_chart():
 def nonlinear_track():
     time = np.arange(0.0, 20.0, 0.2)
     fig, ax = plt.subplots(2, 1, figsize=(8, 8))
-    for seed, c in enumerate(np.arange(0.1, 1.0, 0.01)):
+    arguments = np.arange(0.2, 1.0, 0.01)
+    values = []
+    for seed, c in enumerate(arguments):
         parameters = {
             "k": 0.0,
-            "c": c,
+            "c": 0.01,
             "m2": 0.5,
             "l2": 0.5,
             "dt": 0.2,
-            "N": 300,
+            "N": 200,
             "tracking_time": 100,
             "algorithm": "deepcgf",
             "lambda_g": 0.5,
@@ -315,25 +320,32 @@ def nonlinear_track():
             "seed": seed,
         }
         obj = Nonlinear_tracking(parameters)
-        error = obj.trajectory_tracking()
-        ax[0].plot(time, error, color=cm.viridis(1.0-c), label="Fragmented" if seed == 0 else "")
+        results = obj.trajectory_tracking()
+        error = obj.error
+        print(f"Error: {error}")
+        return
+        values.append(error)
+
+    ax[0].plot(arguments, values, 'bo', label="Fragmented", mfc='none', markersize=5) #color=cm.viridis(1.0-c), label="Fragmented" if seed == 0 else "")
+    ax[1].plot(arguments, values, 'bo', label="Fragmented", mfc='none', markersize=5) #color=cm.viridis(1.0-c), label="Fragmented" if seed == 0 else "")
 
     
-    ax[0].plot(time, obj.trajectory.tolist()[5:105], label="Reference", linestyle="--", color="black")
-    ax[0].set_xlabel("Time (s)")
-    ax[0].set_ylabel("Angle $\theta$, (rad)")
-    ax[0].set_title("Double Pendulum Tracking: Fragmented DeePC vs. Segmented DeePC")
-    ax[0].legend()
-    ax[0].set_ylim(-np.pi/2, np.pi/2)
-    ax[0].set_xlim(0, 20)
+    #ax[0].plot(time, obj.trajectory.tolist()[5:105], label="Reference", linestyle="--", color="black")
+    ax[0].set_xlabel("Factor damping")
+    ax[0].set_ylabel("Sum of Set-point Errors")
+    
+    ax[0].set_yscale('log')
+    #ax[0].set_ylim(-np.pi/2, np.pi/2)
+    #ax[0].set_xlim(0, 20)
     ax[0].grid(True)
 
 
     ### MATLAB PART
-    lower_bound = 100
+    lower_bound = 110
     upper_bound = 190
+    arguments = np.arange(0.2, 1.0, 0.01)
     # Load the .mat file
-    data = scipy.io.loadmat("pendulum.mat")
+    data = scipy.io.loadmat("data/pendulum.mat")
     variable_name = "trajectories"    
     # Extract the trajectories variable
     if variable_name not in data:
@@ -343,17 +355,54 @@ def nonlinear_track():
     if trajectories.ndim != 2:
         raise ValueError("Trajectories data must be a 2D array.")    
     # Plot each trajectory
-    for i in range(lower_bound, upper_bound):  # Loop over columns
-        ax[1].plot(time, trajectories[:, i], color=cm.viridis(1.0-((i-lower_bound)/100)), label="Segmented" if i == upper_bound-1 else "")
+    #for i in range(lower_bound, upper_bound):  # Loop over columns
+    #    ax[1].plot(time, trajectories[:, i], color=cm.viridis(1.0-((i-lower_bound)/100)), label="Segmented" if i == upper_bound-1 else "")
     
-    ax[1].plot(time, obj.trajectory.tolist()[5:105], label="Reference", linestyle="--", color="black")
+    #ax[1].plot(time, obj.trajectory.tolist()[5:105], label="Reference", linestyle="--", color="black")
+
+    error_list = []
+    for i in range(lower_bound, upper_bound):
+        matlab_trajectory = trajectories[:, i]
+        fragmented_trajectory = obj.trajectory.tolist()[5:105]
+        error = np.sum(np.abs(matlab_trajectory - fragmented_trajectory))
+        error_list.append(error)
     
+    ax[0].plot(arguments, error_list, 'rx', label="Segmented", markersize=5)
+
+
+    error_list_orig = []
+    for i in range(lower_bound-100, upper_bound-100):
+        matlab_trajectory = trajectories[:, i]
+        fragmented_trajectory = obj.trajectory.tolist()[5:105]
+        error = np.sum(np.abs(matlab_trajectory - fragmented_trajectory))
+        error_list_orig.append(error)
+    
+    ax[1].plot(arguments, error_list_orig, 'gx', label="Original", markersize=5)
+
+    # Calculate the moving average of error_list
+    window_size = 9
+    moving_avg = np.convolve(error_list, np.ones(window_size)/window_size, mode='valid')
+    moving_avg_orig = np.convolve(error_list_orig, np.ones(window_size)/window_size, mode='valid')
+    moving_avg_frag = np.convolve(values, np.ones(window_size)/window_size, mode='valid')
+    
+    # Plot the moving average
+    ax[0].plot(arguments[window_size//2:len(moving_avg)+window_size//2], moving_avg, 'r-', markersize=5)
+    ax[0].plot(arguments[window_size//2:len(moving_avg_frag)+window_size//2], moving_avg_frag, 'b-', markersize=5)
+    ax[1].plot(arguments[window_size//2:len(moving_avg_frag)+window_size//2], moving_avg_frag, 'b-', markersize=5)
+    ax[1].plot(arguments[window_size//2:len(moving_avg_orig)+window_size//2], moving_avg_orig, 'g-', markersize=5)
+
+    ax[0].legend()
     # Customize the plot
-    ax[1].set_xlabel("Time (s)")
-    ax[1].set_ylabel("Angle $\theta$, (rad)")
+    ax[1].set_xlabel("Factor damping")
+    ax[1].set_ylabel("Sum of Set-point Errors")
     ax[1].legend()
-    ax[1].set_ylim(-np.pi/2, np.pi/2)
-    ax[1].set_xlim(0, 20)
+    ax[1].set_yscale('log')
+
+    #ax[1].set_xlabel("Time (s)")
+    #ax[1].set_ylabel("Angle $\theta$, (rad)")
+    #ax[1].legend()
+    #ax[1].set_ylim(-np.pi/2, np.pi/2)
+    #ax[1].set_xlim(0, 20)
     ax[1].grid(True)
     
     # Show the plot
@@ -466,7 +515,7 @@ def nonlinear_hyperparams():
     plt.tight_layout()
     plt.savefig("img/nonlinear_hyperparameter.pdf")
 
-def plot_matlabs(mat_file_path, lower_bound, upper_bound, name = "Original"):
+def plot_matlabs(mat_file_path, lower_bound, upper_bound, name = "Original",):
     """
     Plots all trajectories stored in a .mat file.
 
@@ -505,12 +554,113 @@ def plot_matlabs(mat_file_path, lower_bound, upper_bound, name = "Original"):
     plt.tight_layout()
     plt.savefig(f'img/matlab_tracking_{name}.pdf')
 
+def try_violin():
+
+    data = scipy.io.loadmat("data/pendulum_violin.mat")  
+    trajectories = data["trajectories"]  
+
+    data = []
+    Damping_list = [1.0, 0.5, 0.25, 0.125]
+    for i in range(4):
+        for j in range(100):
+            data.append({"Algorithm": "Original", "Damping factor": Damping_list[i], "Sum of Set-point Errors": trajectories[i, j]})
+            data.append({"Algorithm": "Segmented", "Damping factor": Damping_list[i], "Sum of Set-point Errors": trajectories[i+4, j]})
+
+    # Generate some data
+    if True:
+        for damping in [1.0, 0.5, 0.25, 0.125]:
+            for seed in range(100):
+                parameters = {
+                    "k": 0.0,
+                    "c": damping,
+                    "m2": 0.5,
+                    "l2": 0.5,
+                    "dt": 0.2,
+                    "N": 200,
+                    "tracking_time": 100,
+                    "algorithm": "deepcgf",
+                    "lambda_g": 7.5,
+                    "control_horizon": 3,
+                    "prediction_horizon": 10,
+                    "seed": seed,
+                }
+                obj = Nonlinear_tracking(parameters)
+                _ = obj.trajectory_tracking()
+                data.append({"Algorithm": "Fragmented", "Damping factor": damping, "Sum of Set-point Errors": obj.error})
+
+    df = pd.DataFrame(data)
+
+    # Create the violin plot
+    plt.figure(figsize=(8, 5))
+    #sns.violinplot(x="Damping factor", y="Value", hue="Algorithm", data=df, palette="Set2", inner="quart")
+    sns.boxplot(x="Damping factor", y="Sum of Set-point Errors", hue="Algorithm", data=df, palette="Set2", gap=0.1)
+
+    # Add title and labels
+    #plt.title("Violin Plot with Damping factor and Category")
+    plt.xlabel("Damping factor")
+    plt.ylabel("Sum of Set-point Errors")
+    plt.ylim(0, 100)
+    plt.tight_layout()
+    plt.grid(True)
+    plt.savefig("img/violin_plot.pdf")
+    
+def try_dataset():
+
+    data = scipy.io.loadmat("data/pendulum_dataset.mat")  
+    trajectories = data["trajectories"]  
+    data = []
+    dataset = [30, 50, 100, 200]
+    for i in range(4):
+        for j in range(10):
+            data.append({"Algorithm": "Segmented", "Dataset size": dataset[i], "Sum of Set-point Errors": trajectories[i+4, j]})
+            data.append({"Algorithm": "Original", "Dataset size": dataset[i], "Sum of Set-point Errors": trajectories[i, j]})
+            
+
+    # Generate some data
+    if True:
+        for N in [20, 30, 50, 100, 200]:
+            for seed in range(10):
+                parameters = {
+                    "k": 0.0,
+                    "c": 0.25,
+                    "m2": 0.5,
+                    "l2": 0.5,
+                    "dt": 0.2,
+                    "N": N,
+                    "tracking_time": 100,
+                    "algorithm": "deepcgf",
+                    "lambda_g": 7.5,
+                    "control_horizon": 3,
+                    "prediction_horizon": 10,
+                    "seed": seed,
+                }
+                obj = Nonlinear_tracking(parameters)
+                _ = obj.trajectory_tracking()
+                data.append({"Algorithm": "Fragmented", "Dataset size": N, "Sum of Set-point Errors": obj.error})
+
+    df = pd.DataFrame(data)
+
+    # Create the violin plot
+    plt.figure(figsize=(8, 5))
+    #sns.violinplot(x="Damping factor", y="Value", hue="Algorithm", data=df, palette="Set2", inner="quart")
+    sns.boxplot(x="Dataset size", y="Sum of Set-point Errors", hue="Algorithm", data=df, palette="Set2", gap=0.1, hue_order=["Original", "Segmented", "Fragmented"])
+
+    # Add title and labels
+    #plt.title("Violin Plot with Damping factor and Category")
+    plt.xlabel("Dataset size")
+    plt.ylabel("Sum of Set-point Errors")
+    plt.ylim(0, 100)
+    plt.tight_layout()
+    plt.grid(True)
+    plt.savefig("img/dataset.pdf")
+
 # Check if the script is being run as the main module
 if __name__ == "__main__": 
-    varyingN()
+    #varyingN()
     #hyperparameter_tuning()
     #nonlinear_track()
     #nonlinear_hyperparams()
     #pendulum_growing()
     #plot_matlabs("pendulum.mat", 0, 90, "Original")
+    try_dataset()
     print("Hi, I am the main module.")
