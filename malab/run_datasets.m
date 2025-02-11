@@ -139,7 +139,7 @@ for dataset_index = 1:length(dataset_list)
                 trun = zeros(simlength_run,1); % Time vector
                 yrun = y0';
                 urun = zeros(simlength_run,1); % Input vector
-        
+                no_error = 0;
         
                 for k = Ctrlparams.Tini+1:simlength_run+Ctrlparams.Tini
         
@@ -164,19 +164,28 @@ for dataset_index = 1:length(dataset_list)
         
         
                     % Call data predictive control algorithm
-                    if segmented==1
-                        [usp,~,~,~,ti] = CtrlSeg(Data.uini,Data.yini,Fcasts,umax,umin,Ctrlparams);
-                    else
-                        [usp,~,~,~,ti] = CtrlUnseg(Data.uini,Data.yini,Fcasts,umax,umin,Ctrlparams);
+                    try
+                        if segmented==1
+                            [usp,~,~,~,ti] = CtrlSeg(Data.uini,Data.yini,Fcasts,umax,umin,Ctrlparams);
+                        else
+                            [usp,~,~,~,ti] = CtrlUnseg(Data.uini,Data.yini,Fcasts,umax,umin,Ctrlparams);
+                        end
+                    catch ME
+                        no_error = Inf;
+                        break
                     end
-        
+            
                     % Collect computational time measurement
                     timey(k,runcount) = ti;
                 end
-        
+                
                 % Measure and store set-point error and computational time
-                err = abs(yrun(Ctrlparams.Tini+1:end,1)-yspfull(Ctrlparams.Tini+1:Ctrlparams.Tini+runlen/dtc));
-                error_list(rseed) = sum(err);
+                if no_error > 0
+                    error_list(rseed) = no_error;
+                else
+                    err = abs(yrun(Ctrlparams.Tini+1:end,1)-yspfull(Ctrlparams.Tini+1:Ctrlparams.Tini+runlen/dtc));
+                    error_list(rseed) = sum(err);
+                end
                 %disp(sum(err));
         
                 trajectories(dataset_index+(length(dataset_list)*segmented), rseed) = sum(err);
@@ -189,10 +198,11 @@ for dataset_index = 1:length(dataset_list)
                 scenariocount = scenariocount+1;
         
             end
-            disp("Mean value: "+num2str(mean(error_list)))
-            disp("Std Dev: "+num2str(std(error_list)))
-            disp("Max val: "+num2str(max(error_list)))
-            disp("Min val: "+num2str(min(error_list)))
+
+            %disp("Mean value: "+num2str(mean(error_list)))
+            %disp("Std Dev: "+num2str(std(error_list)))
+            %disp("Max val: "+num2str(max(error_list)))
+            %disp("Min val: "+num2str(min(error_list)))
         end
     end
 end
