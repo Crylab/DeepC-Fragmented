@@ -28,85 +28,126 @@ import seaborn.objects as so
 import matplotlib.cm as cm
 
 def hyperparameter_tuning():
-    n_seeds = 1000
-    fig, ax = plt.subplots(1, 2, figsize=(8, 4))
+    n_seeds = 30
+    fig, ax = plt.subplots(2, 1, figsize=(5, 6))
 
     control_list = range(10)
     plot_list = []
     shadow_list = []
-    lambda_list = []#[2.0, 5.0, 8.0, 11.0, 14.0]#range(3, 15) #[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    lambda_list = [2.0, 5.0, 8.0, 11.0, 14.0]#range(3, 15) #[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     alg = "deepcgf"
 
-    for control in control_list:
-        error_list = []
-        
-        for seed in range(0, n_seeds):
-            # Define the parameters for the experiment
-            params = {
-                "Q": [1.0],
-                "R": [0.0],
-                "lambda_g": 0.5,
-                "N": 20,
-                "lambda_y": [0.5],
-                "algorithm": alg,
-                "initial_horizon": 5,
-                "control_horizon": control,
-                "prediction_horizon": 10,
-                "seed": seed,
-                "noise": True,
-            }
-            try:
-                obj = Linear_tracking(params)
-                _ = obj.trajectory_tracking()
-                error_list.append(float(obj.error))
-            except:
-                continue
+    if True:
+        for control in control_list:
+            error_list = []
             
+            for seed in range(0, n_seeds):
+                # Define the parameters for the experiment
+                params = {
+                    "Q": [1.0],
+                    "R": [0.0],
+                    "lambda_g": 7.5,
+                    "N": 300,
+                    "lambda_y": [0.5],
+                    "algorithm": alg,
+                    "initial_horizon": 5,
+                    "control_horizon": control,
+                    "prediction_horizon": 10,
+                    "seed": seed,
+                    "noise": False,
+                }
+                try:
+                    obj = Linear_tracking(params)
+                    _ = obj.trajectory_tracking()
+                    error_list.append(float(obj.error))
+                except:
+                    continue
+                
 
-        plot_list.append(np.mean(error_list))
-        shadow_list.append(np.std(error_list))
+            plot_list.append(np.mean(error_list))
+            shadow_list.append(np.std(error_list))
 
-    ax[0].plot(control_list, plot_list, label="Fragmented", color="blue")
-    ax[0].fill_between(control_list, np.array(plot_list) - np.array(shadow_list), np.array(plot_list) + np.array(shadow_list), color="blue", alpha=0.1)
+        ax[0].plot(control_list, plot_list, label="Fragmented", color="blue")
+        ax[0].fill_between(control_list, np.array(plot_list) - np.array(shadow_list), np.array(plot_list) + np.array(shadow_list), color="blue", alpha=0.1)
+
+    if False:
+        plot_list = []
+        shadow_list = []
+        for control in control_list:
+            error_list = []
+            
+            for seed in range(0, n_seeds):
+                # Define the parameters for the experiment
+                params = {
+                    "Q": [1.0],
+                    "R": [0.0],
+                    "lambda_g": 7.5,
+                    "N": 20,
+                    "lambda_y": [0.5],
+                    "algorithm": alg,
+                    "initial_horizon": 5,
+                    "control_horizon": control,
+                    "prediction_horizon": 10,
+                    "seed": seed,
+                    "noise": True,
+                }
+                try:
+                    obj = Linear_tracking(params)
+                    _ = obj.trajectory_tracking()
+                    error_list.append(float(obj.error))
+                except:
+                    continue
+                
+
+            plot_list.append(np.mean(error_list))
+            shadow_list.append(np.std(error_list))
+
+        ax[0].plot(control_list, plot_list, label="With Noise, N=20", color=cm.viridis(0.5))
+        ax[0].fill_between(control_list, np.array(plot_list) - np.array(shadow_list), np.array(plot_list) + np.array(shadow_list), color=cm.viridis(0.5), alpha=0.25)
+
+
+
     ax[0].set_xlabel("Fragmented prediction horizon, steps")
     ax[0].set_ylabel("Sum of Set-point errors (m)")
     #ax[0].set_title("Control horizon optimization")
     ax[0].legend()
     ax[0].grid(True)
+    #ax[0].set_yscale('log')
 
-    plot_list = []
-    shadow_list = []
-    for lambda_g in lambda_list:
-        error_list = []
-        
-        for seed in range(0, n_seeds):
-            # Define the parameters for the experiment
-            params = {
-                "Q": [1.0],
-                "R": [0.0],
-                "lambda_g": lambda_g,
-                "N": 200,
-                "lambda_y": [0.5],
-                "algorithm": alg,
-                "initial_horizon": 5,
-                "control_horizon": 3,
-                "prediction_horizon": 10,
-                "seed": seed,
-                "noise": False,
-            }
-            try:
-                obj = Linear_tracking(params)
-                _ = obj.trajectory_tracking()
-                error_list.append(float(obj.error))
-            except:
-                continue
+    if True:
+        plot_list = []
+        shadow_list = []
+        for lambda_g in lambda_list:
+            error_list = []
             
+            for seed in range(0, n_seeds):
+                # Define the parameters for the experiment
+                params = {
+                    "Q": [1.0],
+                    "R": [0.0],
+                    "lambda_g": lambda_g,
+                    "N": 200,
+                    "lambda_y": [0.5],
+                    "algorithm": alg,
+                    "initial_horizon": 5,
+                    "control_horizon": 3,
+                    "prediction_horizon": 10,
+                    "seed": seed,
+                    "noise": False,
+                }
+                try:
+                    obj = Linear_tracking(params)
+                    _ = obj.trajectory_tracking()
+                    error_list.append(float(obj.error))
+                except:
+                    continue
+                
 
-        plot_list.append(np.mean(error_list))
-        shadow_list.append(np.std(error_list))
+            plot_list.append(np.mean(error_list))
+            shadow_list.append(np.std(error_list))
 
-    ax[1].plot(lambda_list, plot_list, label="Fragmented", color="blue")
-    ax[1].fill_between(lambda_list, np.array(plot_list) - np.array(shadow_list), np.array(plot_list) + np.array(shadow_list), color="blue", alpha=0.1)
+        ax[1].plot(lambda_list, plot_list, label="Fragmented", color="blue")
+        ax[1].fill_between(lambda_list, np.array(plot_list) - np.array(shadow_list), np.array(plot_list) + np.array(shadow_list), color="blue", alpha=0.1)
     ax[1].set_xlabel(r"Regularization weight $\lambda_g$")
     ax[1].set_ylabel("Sum of Set-point errors (m)")
     #ax[1].set_title("Regularization optimization")
@@ -120,7 +161,7 @@ def varyingN():
     fig_traj,ax_traj = plt.subplots(figsize=(10, 5))
     fig_bar,ax_bar = plt.subplots(figsize=(5, 5))
     # Plot the chart
-    prediction_list = [10, 20, 40]
+    prediction_list = [10]#, 20, 40]
     error_dict = {}
     alg = "deepcgf"
 
@@ -134,7 +175,7 @@ def varyingN():
                 "Q": [1.0],
                 "R": [0.0],
                 "lambda_g": 7.5,
-                "N": 200,
+                "N": 32,
                 "lambda_y": [0.5],
                 "algorithm": alg,
                 "initial_horizon": 5,
@@ -600,7 +641,7 @@ def try_violin():
     #plt.title("Violin Plot with Damping factor and Category")
     plt.xlabel("Damping factor")
     plt.ylabel("Sum of Set-point Errors")
-    plt.ylim(0, 100)
+    plt.ylim(0, 190)
     plt.tight_layout()
     plt.grid(True)
     plt.savefig("img/violin_plot.pdf")
@@ -702,6 +743,66 @@ def try_dataset():
     plt.grid(True)
     plt.savefig("img/dataset.pdf")
 
+def lienar_after_theory():
+    data = scipy.io.loadmat("data/linearDopoTh.mat")  
+    trajectories = data["trajectories"]  
+    data = []
+    dataset = [30, 40, 50, 60, 100]
+    for i in dataset:
+        for j in range(100):
+            data.append({"Algorithm": "Segmented", "Dataset size": i, "Sum of Set-point Errors": trajectories[int(i/10)-1, 100+j]})
+            data.append({"Algorithm": "Original", "Dataset size": i, "Sum of Set-point Errors": trajectories[int(i/10)-1, j]})
+            
+
+    # Generate some data
+    alg = "deepcgf"
+    if True:
+        for N in dataset:
+            for seed in range(100):                
+                params = {
+                    "Q": [1.0],
+                    "R": [0.0],
+                    "lambda_g": 7.5,
+                    "N": N-8,
+                    "lambda_y": [0.5],
+                    "algorithm": alg,
+                    "initial_horizon": 5,
+                    "control_horizon": 3,
+                    "prediction_horizon": 10,
+                    "seed": seed,
+                    "noise": True,
+                }
+                obj = Linear_tracking(params)
+                _ = obj.trajectory_tracking()
+                data.append({"Algorithm": "Fragmented", "Dataset size": N, "Sum of Set-point Errors": obj.error})
+
+    df = pd.DataFrame(data)
+
+
+    # Create the violin plot
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    # Count the number of points higher than 100 for each dataset size and algorithm
+    count_data = df[df["Sum of Set-point Errors"] > 100].groupby(["Dataset size", "Algorithm"]).size().reset_index(name='Count')
+    count_data.loc[len(count_data)] = [200, "Fragmented", 0]
+
+    #sns.violinplot(x="Damping factor", y="Value", hue="Algorithm", data=df, palette="Set2", inner="quart")
+    sns.boxplot(x="Dataset size", y="Sum of Set-point Errors", hue="Algorithm", data=df, palette="viridis", gap=0.1, hue_order=["Fragmented", "Segmented", "Original"])
+    viridis = plt.get_cmap()
+    ax.legend(loc='upper right')
+
+    # Add title and labels
+    #plt.title("Violin Plot with Damping factor and Category")
+    plt.xlabel("Amount of data, L")
+    plt.ylabel("Sum of Set-point Errors")
+    plt.ylim(0, 99)
+    plt.tight_layout()
+    plt.subplots_adjust(hspace=0.02)
+    #plt.yscale('log')
+    
+    plt.grid(True)
+    plt.savefig("img/linearDopoTh.pdf")
+
 # Check if the script is being run as the main module
 if __name__ == "__main__": 
     #varyingN()
@@ -710,6 +811,7 @@ if __name__ == "__main__":
     #nonlinear_hyperparams()
     #pendulum_growing()
     #plot_matlabs("pendulum.mat", 0, 90, "Original")
-    try_dataset()
+    #try_dataset()
     #try_violin()
+    lienar_after_theory()
     print("Hi, I am the main module.")

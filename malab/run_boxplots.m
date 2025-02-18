@@ -1,67 +1,77 @@
+clear all
+clc
 disp('Run multiple realisations of disturbance and sensor noise')
 disp('Run each realisation with varying prediction horizon for both segmented and unsegmented formulations:')
-addpath('Controllers')
-addpath('Simulator')
-addpath('utils')
+%addpath('Controllers')
+%addpath('Simulator')
+%addpath('utils')
 % Run for the following prediction horizons:
-Nlist = [10,20,40]; % List of horizons for which to run
-Slist = 1:100; % Seeds to use for different random component realisations
+Nlist = [10]%,20,40]; % List of horizons for which to run
+
+N = 10;
+simlength_trlist = [30, 40, 50, 60, 100];
+number_seeds = 100;
+Slist = 1:number_seeds; % Seeds to use for different random component realisations
 % Sim setup
-simlength_tr = 300; % number of training samples
-simlength_run = 100; % number of run samples
-
-% Model physical params
-m1 = 0.5;
-m2 = 1.5;
-k1 = 2;
-k2 = 2;
-d1 = 1;
-d2 = 1;
-y0 = [0;0;0;0]; % initial condition
-
-% Max/min input limits
-umax = 1;
-umin = -1;
-
-
-dtc = 1; % control sample time
-trlen = simlength_tr*dtc; % training length in seconds
-runlen = simlength_run*dtc; % run length in seconds
-
-
-% Build a setpoint to follow:
-spch1 = 25;
-spch2 = 20;
-yspfull = 0.8*[0.5*ones(spch1,1);-0.3*ones(spch2,1);-0.1*ones(spch1,1);...
-    -0.5*ones(spch2,1);0.5*ones(spch1,1);-0.1*ones(spch2,1);0.5*ones(spch1,1);...
-    -0.5*ones(runlen-spch1*4-spch2*3+max(Nlist)*dtc,1)];
-sp_band = 0; % Set point band
-
-% Build an input cost
-cost = ones(runlen/dtc+max(Nlist),1);
-
-% Preallocation
-timey = zeros(runlen/dtc,length(Nlist)); % for collecting computational times
-errfad = zeros(4,length(Nlist)); % for collecting set-point errors
-timeyfad = zeros(4,length(Nlist)); % for collecting average computational times
-errUnseg = zeros(length(Slist),length(Nlist));
-errSeg = zeros(length(Slist),length(Nlist));
-errUnsegSens = zeros(length(Slist),length(Nlist));
-errSegSens = zeros(length(Slist),length(Nlist));
-timeyUnseg = zeros(length(Slist),length(Nlist));
-timeySeg = zeros(length(Slist),length(Nlist));
-
-
-trgap = 10;
-seedcount = 0;
+for simlength_tr = simlength_trlist % Run for different datasetsize 
+    %simlength_tr = 60; % number of training samples
+    simlength_run = 100; % number of run samples
+    
+    % Model physical params
+    m1 = 0.5;
+    m2 = 1.5;
+    k1 = 2;
+    k2 = 2;
+    d1 = 1;
+    d2 = 1;
+    y0 = [0;0;0;0]; % initial condition
+    
+    % Max/min input limits
+    umax = 1;
+    umin = -1;
+    
+    
+    dtc = 1; % control sample time
+    trlen = simlength_tr*dtc; % training length in seconds
+    runlen = simlength_run*dtc; % run length in seconds
+    
+    
+    % Build a setpoint to follow:
+    spch1 = 25;
+    spch2 = 20;
+    yspfull = 0.8*[0.5*ones(spch1,1);-0.3*ones(spch2,1);-0.1*ones(spch1,1);...
+        -0.5*ones(spch2,1);0.5*ones(spch1,1);-0.1*ones(spch2,1);0.5*ones(spch1,1);...
+        -0.5*ones(runlen-spch1*4-spch2*3+max(Nlist)*dtc,1)];
+    sp_band = 0; % Set point band
+    
+    % Build an input cost
+    cost = ones(runlen/dtc+max(Nlist),1);
+    
+    % Preallocation
+    timey = zeros(runlen/dtc,length(Nlist)); % for collecting computational times
+    errfad = zeros(4,length(Nlist)); % for collecting set-point errors
+    timeyfad = zeros(4,length(Nlist)); % for collecting average computational times
+    errUnseg = zeros(length(Slist),length(Nlist));
+    errSeg = zeros(length(Slist),length(Nlist));
+    errUnsegSens = zeros(length(Slist),length(Nlist));
+    errSegSens = zeros(length(Slist),length(Nlist));
+    timeyUnseg = zeros(length(Slist),length(Nlist));
+    timeySeg = zeros(length(Slist),length(Nlist));
+    
+    trgap = 10;
+    seedcount = 0;
 %%
-for N = Nlist % Run for different prediction horizons 
+
     for segmented = [0, 1] % First run is unsegmeneted, second run is segmented
-        error_list = zeros(1, 100);
+        if segmented == 0 && simlength_tr == 30
+            disp("Skip Original with Training=30")
+            continue
+        end
+        error_list = zeros(1, number_seeds);
         if segmented == 1
-            disp("Run Segmented with N="+num2str(N))
+            disp("Run Segmented with Training="+num2str(simlength_tr))
         else
-            disp("Run Original with N="+num2str(N))
+            disp("Run Original with Training="+num2str(simlength_tr))
         end
         for rseed = Slist % Run for different realisations of random components
             rng(rseed)
@@ -92,7 +102,8 @@ for N = Nlist % Run for different prediction horizons
             end
     
             n_ord = 10;
-            Ctrlparams.T = (1+1)*(Ctrlparams.Tf+Ctrlparams.Tini+1*n_ord)-1;
+            %Ctrlparams.T = (1+1)*(Ctrlparams.Tf+Ctrlparams.Tini+1*n_ord)-1;
+            Ctrlparams.T = simlength_tr - (Ctrlparams.Tf+Ctrlparams.Tini);
     
     
     
@@ -138,6 +149,8 @@ for N = Nlist % Run for different prediction horizons
             yrun = zeros(runlen/dtc,4); % Output vector
             wrun = zeros(runlen/dtc,1); % Disturbance vector
             urun = zeros(runlen/dtc,1); % Input vector
+
+            no_error = 0;
     
     
             for k = 1:runlen/dtc
@@ -165,36 +178,42 @@ for N = Nlist % Run for different prediction horizons
     
     
                 % Call data predictive control algorithm
-                if segmented==1
-                    [usp,~,~,~,ti] = CtrlSeg(Data.uini,Data.yini,Fcasts,umax,umin,Ctrlparams);
-                else
-                    [usp,~,~,~,ti] = CtrlUnseg(Data.uini,Data.yini,Fcasts,umax,umin,Ctrlparams);
+                try
+                    if segmented==1
+                        [usp,~,~,~,ti] = CtrlSeg(Data.uini,Data.yini,Fcasts,umax,umin,Ctrlparams);
+                    else
+                        [usp,~,~,~,ti] = CtrlUnseg(Data.uini,Data.yini,Fcasts,umax,umin,Ctrlparams);
+                    end
+                catch ME
+                    no_error = 100000;
+                    break
                 end
-    
                 % Collect computational time measurement
                 timey(k,runcount) = ti;
             end
     
             % Measure and store set-point error and computational time
-            err = abs(yrun(:,2)-yspfull(1:runlen/dtc));
-            error_list(rseed) = sum(err);
-            errfad(scenariocount+includedist*2,runcount)=sum(err);
-            
+            if no_error > 0
+                error_list(rseed) = no_error;
+                errfad(scenariocount+includedist*2,runcount)=no_error;
+            else
+                err = abs(yrun(:,2)-yspfull(1:runlen/dtc));
+                error_list(rseed) = sum(err);
+                errfad(scenariocount+includedist*2,runcount)=sum(err);
+            end
             timeyfad(scenariocount+includedist*2,runcount)=mean(timey(:,runcount));
     
             %disp(strcat('N=',num2str(N),' run completed'))    
             runcount = runcount+1;
-            if N == 10
-                trajectories(:, rseed + (segmented * 100)) = yrun(:,2);
-            end
+            trajectories(simlength_tr/10, rseed + (segmented * number_seeds)) = error_list(rseed);
                        
             scenariocount = scenariocount+1;
 
         end
-        disp("Mean value: "+num2str(mean(error_list)))
-        disp("Std Dev: "+num2str(std(error_list)))
-        disp("Max val: "+num2str(max(error_list)))
-        disp("Min val: "+num2str(min(error_list)))
+        disp("Mean value: "+num2str(mean(error_list(isfinite(error_list)))))
+        disp("Std Dev: "+num2str(std(error_list(isfinite(error_list)))))
+        disp("Max val: "+num2str(max(error_list(isfinite(error_list)))))
+        disp("Min val: "+num2str(min(error_list(isfinite(error_list)))))
     end
     
     seedcount = seedcount+1;
