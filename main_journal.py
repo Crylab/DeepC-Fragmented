@@ -750,8 +750,26 @@ def lienar_after_theory():
     dataset = [30, 40, 50, 60, 100]
     for i in dataset:
         for j in range(100):
-            data.append({"Algorithm": "Segmented", "Dataset size": i, "Sum of Set-point Errors": trajectories[int(i/10)-1, 100+j]})
-            data.append({"Algorithm": "Original", "Dataset size": i, "Sum of Set-point Errors": trajectories[int(i/10)-1, j]})
+            value = trajectories[int(i/10)-1, 100+j]
+            if value > 100:
+                value = 100
+            data.append(
+                {
+                    "Algorithm": "Segmented", 
+                    "Dataset size": i, 
+                    "Sum of Set-point Errors": value
+                }
+            )
+            value = trajectories[int(i/10)-1, j]
+            if value > 100:
+                value = 100
+            data.append(
+                {
+                    "Algorithm": "Original", 
+                    "Dataset size": i, 
+                    "Sum of Set-point Errors": value
+                }
+            )
             
 
     # Generate some data
@@ -795,7 +813,7 @@ def lienar_after_theory():
     #plt.title("Violin Plot with Damping factor and Category")
     plt.xlabel("Amount of data, L")
     plt.ylabel("Sum of Set-point Errors")
-    plt.ylim(0, 99)
+    plt.ylim(0, 105)
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.02)
     #plt.yscale('log')
