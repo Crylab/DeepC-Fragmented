@@ -618,7 +618,7 @@ def try_violin():
                     "m2": 0.5,
                     "l2": 0.5,
                     "dt": 0.2,
-                    "N": 200,
+                    "N": 100-8,
                     "tracking_time": 100,
                     "algorithm": "deepcgf",
                     "lambda_g": 7.5,
@@ -641,7 +641,8 @@ def try_violin():
     #plt.title("Violin Plot with Damping factor and Category")
     plt.xlabel("Damping factor")
     plt.ylabel("Sum of Set-point Errors")
-    plt.ylim(0, 190)
+    plt.ylim(5, 10**4)
+    plt.yscale('log')
     plt.tight_layout()
     plt.grid(True)
     plt.savefig("img/violin_plot.pdf")
@@ -652,15 +653,15 @@ def try_dataset():
     trajectories = data["trajectories"]  
     data = []
     dataset = [30, 50, 100, 200]
-    for i in range(4):
+    for i, dataset_size in enumerate(dataset):
         for j in range(100):
-            data.append({"Algorithm": "Segmented", "Dataset size": dataset[i], "Sum of Set-point Errors": trajectories[i+4, j]})
-            data.append({"Algorithm": "Original", "Dataset size": dataset[i], "Sum of Set-point Errors": trajectories[i, j]})
+            data.append({"Algorithm": "Segmented", "Dataset size": dataset_size, "Sum of Set-point Errors": trajectories[i+len(dataset), j]})
+            data.append({"Algorithm": "Original", "Dataset size": dataset_size, "Sum of Set-point Errors": trajectories[i, j]})
             
 
     # Generate some data
     if True:
-        for N in [20, 30, 50, 100, 200]:
+        for N in dataset:
             for seed in range(100):
                 parameters = {
                     "k": 0.0,
@@ -668,7 +669,7 @@ def try_dataset():
                     "m2": 0.5,
                     "l2": 0.5,
                     "dt": 0.2,
-                    "N": N,
+                    "N": N-8,
                     "tracking_time": 100,
                     "algorithm": "deepcgf",
                     "lambda_g": 7.5,
@@ -684,61 +685,23 @@ def try_dataset():
 
 
     # Create the violin plot
-    fig, ax = plt.subplots(2, 1, figsize=(8, 5), height_ratios=[1, 2], )
+    plt.figure(figsize=(8, 5))
 
     # Count the number of points higher than 100 for each dataset size and algorithm
     count_data = df[df["Sum of Set-point Errors"] > 100].groupby(["Dataset size", "Algorithm"]).size().reset_index(name='Count')
     count_data.loc[len(count_data)] = [200, "Fragmented", 0]
-
-    # Plot the bar chart
-    sns.barplot(x="Dataset size", y="Count", hue="Algorithm", data=count_data, palette="viridis", ax=ax[0], hue_order=["Fragmented", "Segmented", "Original"], gap=0.1)
-    ax[0].set_xlabel("Dataset size")
-    ax[0].set_ylabel("Count of Errors > 100")
-    ax[0].grid(True)
-    ax[0].xaxis.set_label_position('top') 
-    ax[0].xaxis.tick_top()
-    #ax[0].set_title("Count of Errors Greater Than 100 by Dataset Size and Algorithm")
-
+    
     #sns.violinplot(x="Damping factor", y="Value", hue="Algorithm", data=df, palette="Set2", inner="quart")
-    sns.boxplot(x="Dataset size", y="Sum of Set-point Errors", hue="Algorithm", data=df, palette="viridis", gap=0.1, hue_order=["Fragmented", "Segmented", "Original"], ax=ax[1])
+    sns.boxplot(x="Dataset size", y="Sum of Set-point Errors", hue="Algorithm", data=df, palette="viridis", gap=0.1, hue_order=["Fragmented", "Segmented", "Original"])
     viridis = plt.get_cmap()
-    # Add text label for no data
-    ax[1].text(
-        0.12, 60,                   # Position (x, y) in axes coordinates
-        "N/D",                # The text content
-        fontsize=12,                  # Font size
-        ha='right', va='bottom',         # Align the text
-        alpha=0.9,
-    ).set_bbox(dict(facecolor=cm.viridis(0.5), alpha=0.9, edgecolor='#2f2f2f', boxstyle='round'))
-    ax[1].text(
-        0.43, 60,                   # Position (x, y) in axes coordinates
-        "N/D",                # The text content
-        fontsize=12,                  # Font size
-        ha='right', va='bottom',         # Align the text
-        alpha=0.9,
-        color='#2f2f2f'
-    ).set_bbox(dict(facecolor=cm.viridis(0.7), alpha=0.9, edgecolor='#2f2f2f', boxstyle='round'))
-    ax[1].text(
-        1.43, 60,                   # Position (x, y) in axes coordinates
-        "N/D",                # The text content
-        fontsize=12,                  # Font size
-        ha='right', va='bottom',         # Align the text
-        alpha=0.9,
-        color='#2f2f2f'
-    ).set_bbox(dict(facecolor=cm.viridis(0.7), alpha=0.9, edgecolor='#2f2f2f', boxstyle='round'))
-
-
-    ax[0].legend(loc='upper right')
-    ax[1].legend(loc='upper right')
-
+    
     # Add title and labels
     #plt.title("Violin Plot with Damping factor and Category")
     plt.xlabel("Dataset size")
     plt.ylabel("Sum of Set-point Errors")
-    plt.ylim(0, 99)
+    #plt.ylim(0, 99)
     plt.tight_layout()
-    plt.subplots_adjust(hspace=0.02)
-    #plt.yscale('log')
+    plt.yscale('log')
     
     plt.grid(True)
     plt.savefig("img/dataset.pdf")
@@ -829,7 +792,10 @@ if __name__ == "__main__":
     #nonlinear_hyperparams()
     #pendulum_growing()
     #plot_matlabs("pendulum.mat", 0, 90, "Original")
-    #try_dataset()
+    
+
+    # True here
+    try_dataset()
     #try_violin()
-    lienar_after_theory()
+    #lienar_after_theory()
     print("Hi, I am the main module.")
