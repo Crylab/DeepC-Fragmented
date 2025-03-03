@@ -329,7 +329,7 @@ def try_linear():
     plt.grid(True)
     plt.savefig("img/linearDopoTh.pdf")
 
-def chart_example():
+def chart_example50():
     plt.figure(figsize=(8, 5))
     # Plot the chart
     prediction_list = [10]
@@ -414,7 +414,7 @@ def chart_example():
     plt.tight_layout()
     plt.savefig("img/LTI50.pdf")
 
-def chart_example2():
+def chart_example40():
     plt.figure(figsize=(8, 5))
     # Plot the chart
     prediction_list = [10]
@@ -505,4 +505,4 @@ if __name__ == "__main__":
     #try_dataset()
     #try_violin()
     #try_linear()
-    chart_example2()
+    chart_example50()
