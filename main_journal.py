@@ -34,7 +34,7 @@ def hyperparameter_tuning():
     control_list = range(10)
     plot_list = []
     shadow_list = []
-    lambda_list = [2.0, 5.0, 8.0, 11.0, 14.0]
+    lambda_list = np.arange(3.0, 14.0, 0.5)
     alg = "deepcgf"
 
     if True:
@@ -46,8 +46,8 @@ def hyperparameter_tuning():
                 params = {
                     "Q": [1.0],
                     "R": [0.0],
-                    "lambda_g": 7.5,
-                    "N": 300,
+                    "lambda_g": 6.5,
+                    "N": 200,
                     "lambda_y": [0.5],
                     "algorithm": alg,
                     "initial_horizon": 5,
@@ -217,7 +217,7 @@ def try_dataset():
                     "N": N-8,
                     "tracking_time": 100,
                     "algorithm": "deepcgf",
-                    "lambda_g": 7.5,
+                    "lambda_g": 6.5,
                     "control_horizon": 3,
                     "prediction_horizon": 10,
                     "seed": seed,
@@ -346,7 +346,7 @@ def chart_example50():
                 params = {
                     "Q": [1.0],
                     "R": [0.0],
-                    "lambda_g": 7.5,
+                    "lambda_g": 6.5,
                     "N": 50-8,
                     "lambda_y": [0.5],
                     "algorithm": alg,
@@ -414,95 +414,10 @@ def chart_example50():
     plt.tight_layout()
     plt.savefig("img/LTI50.pdf")
 
-def chart_example40():
-    plt.figure(figsize=(8, 5))
-    # Plot the chart
-    prediction_list = [10]
-    error_dict = {}
-    alg = "deepcgf"
-
-    if True:
-        result_list = []
-        for prediction_horizon in prediction_list:
-            error_list = []
-            
-            for seed in range(0, 100):
-                # Define the parameters for the experiment
-                params = {
-                    "Q": [1.0],
-                    "R": [0.0],
-                    "lambda_g": 7.5,
-                    "N": 40-8,
-                    "lambda_y": [0.5],
-                    "algorithm": alg,
-                    "initial_horizon": 5,
-                    "control_horizon": 3,
-                    "prediction_horizon": prediction_horizon,
-                    "seed": seed,
-                    "noise": True,
-                }
-                obj = Linear_tracking(params)
-                result = obj.trajectory_tracking()
-                if prediction_horizon == 10:
-                    result_list.append(result)
-                error_list.append(float(obj.error))
-                #if prediction_horizon == 10:
-                #    if seed == 0:
-                #        ax[0].plot(result, color='blue', alpha=0.5, linewidth=0.5, label="Fragmented")
-                #    elif seed < 20:
-                #        ax[0].plot(result, color='blue', alpha=0.5, linewidth=0.5)
-
-            error_dict[str(prediction_horizon)] = {
-                "mean": np.mean(error_list),
-                "std": np.std(error_list),
-                "min": np.min(error_list),
-                "max": np.max(error_list),
-            }
-
-        # Plot average trajectory
-        avg_frag_trajectory = np.mean(result_list, axis=0)
-        std_frag_trajectory = np.std(result_list, axis=0)
-        plt.plot(obj.trajectory.tolist()[params["initial_horizon"]:105], label="Reference", linestyle="--", color="black")
-        plt.plot(avg_frag_trajectory, color=cm.viridis(0.0), label="Fragmented")
-        plt.fill_between(range(len(avg_frag_trajectory)), avg_frag_trajectory - std_frag_trajectory, avg_frag_trajectory + std_frag_trajectory, color=cm.viridis(0.0), alpha=0.15)
-        
-    
-
-    # Matlab data
-    data = scipy.io.loadmat("data/trajectories2.mat")
-    variable_name = "trajectories"
-    trajectories = data[variable_name]
-
-    # Calculate the average trajectory for the specified range
-    avg_seg_trajectory = np.mean(trajectories[:, 200:300], axis=1)
-    std_seg_trajectory = np.std(trajectories[:, 200:300], axis=1)
-    
-    # Plot the average trajectory with standard deviation
-    plt.plot(avg_seg_trajectory, color=cm.viridis(0.4), label="Segmented")
-    plt.fill_between(range(len(avg_seg_trajectory)), avg_seg_trajectory - std_seg_trajectory, avg_seg_trajectory + std_seg_trajectory, color=cm.viridis(0.4), alpha=0.15)
-    
-    # Calculate the average trajectory for the specified range
-    avg_orig_trajectory = np.mean(trajectories[:, 0:100], axis=1)
-    std_orig_trajectory = np.std(trajectories[:, 0:100], axis=1)
-    
-    # Plot the average trajectory with standard deviation
-    plt.plot(avg_orig_trajectory, color=cm.viridis(0.9), label="Original")
-    plt.fill_between(range(len(avg_orig_trajectory)), avg_orig_trajectory - std_orig_trajectory, avg_orig_trajectory + std_orig_trajectory, color=cm.viridis(0.9), alpha=0.15)
-
-    
-    plt.xlabel("Time (s)")
-    plt.ylabel("Displacement $x_2$, (m)")
-    plt.legend()
-    plt.grid(True)
-
-    # Save the plot
-    plt.tight_layout()
-    plt.savefig("img/LTI40.pdf")
-
 if __name__ == "__main__":    
     #nonlinear_chart()
-    #hyperparameter_tuning()
+    hyperparameter_tuning()
     #try_dataset()
     #try_violin()
     #try_linear()
-    chart_example50()
+    #chart_example50()
