@@ -415,9 +415,9 @@ def chart_example50():
     plt.savefig("img/LTI50.pdf")
 
 if __name__ == "__main__":    
-    #nonlinear_chart()
+    nonlinear_chart()
     hyperparameter_tuning()
-    #try_dataset()
-    #try_violin()
-    #try_linear()
-    #chart_example50()
+    try_dataset()
+    try_violin()
+    try_linear()
+    chart_example50()

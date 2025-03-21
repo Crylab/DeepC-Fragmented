@@ -1,25 +1,34 @@
-# DeePC
+# Fragmented DeePC: Towards the smaller datasets
 
-DeePC is a powerful deep learning framework designed for fragmented data analysis. It provides a comprehensive set of tools and algorithms to handle fragmented datasets, enabling researchers and developers to effectively train and evaluate deep learning models on such data.
+Fragmented DeePC is a novel approach to data-driven control, designed to address challenges in stochastic and nonlinear systems where traditional methods struggle. Unlike Segmented DeePC, which decomposes optimization into smaller subproblems, Fragmented DeePC directly constructs constraint matrices, allowing for independent horizon adjustments for each prediction fragment. This refined segmentation improves tracking performance, especially on smaller datasets, and enhances accuracy in both linear and nonlinear control applications.
 
-## Features
+### Key Features:
+- **Direct Formulation**: Enables explicit construction of constraint matrices.
+- **Flexible Segmentation**: Allows independent horizon adjustments for each prediction fragment.
+- **Improved Performance**: Achieves superior tracking accuracy, even with limited data.
+- **Versatility**: Effective for both linear and nonlinear systems.
 
-- Fragmented data preprocessing: DeePC offers various techniques to preprocess fragmented data, including data augmentation, data fusion, and data imputation.
-- Fragmented model training: With DeePC, you can easily train deep learning models on fragmented data using state-of-the-art algorithms such as convolutional neural networks (CNNs) and recurrent neural networks (RNNs).
-- Fragmented model evaluation: DeePC provides evaluation metrics specifically designed for fragmented data, allowing you to assess the performance of your models accurately.
+Fragmented DeePC is particularly beneficial for scenarios with scarce data or complex nonlinear dynamics, offering a robust solution for modern control challenges.
 
 ## Installation
 
 To install DeePC, follow these steps:
 
-1. Clone the DeePC repository: `git clone https://github.com/DeePC/DeePC.git`
-2. Navigate to the cloned directory: `cd DeePC`
-3. Install the required dependencies: `pip install -r requirements.txt`
-4. You're ready to use DeePC!
+1. Clone the repository: 
+```
+git clone https://github.com/Crylab/DeepC-Fragmented.git
+cd DeepC-Fragmented
+```
+2. Install dependencies with Poetry and run:
+```
+poetry install
+poetry run python3 main.py
+```
+3. The results are available in `img` folder
 
 ## Usage
 
-To use DeePC, follow the examples provided in the `examples` directory of the repository. These examples demonstrate how to preprocess fragmented data, train deep learning models, and evaluate their performance.
+To use Fragmented DeePC, look at the examples in `main.py`. The `source\deepcfg.py` content realization of Fragmented DeePC.
 
 ## Contributing
 
